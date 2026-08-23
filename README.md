@@ -20,7 +20,7 @@ strong foundation for security and ethical hacking.
 - [x] DSCP / ECN
 - [x] Total Length
 - [x] Identification
-- [ ] Flags / Fragment Offset
+- [x] Flags / Fragment Offset
 - [ ] TTL
 - [ ] Protocol
 - [ ] Header Checksum
