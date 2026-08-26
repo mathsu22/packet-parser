@@ -21,9 +21,15 @@ strong foundation for security and ethical hacking.
 - [x] Total Length
 - [x] Identification
 - [x] Flags / Fragment Offset
-- [ ] TTL
-- [ ] Protocol
-- [ ] Header Checksum
+- [x] TTL
+- [x] Protocol
+- [x] Header Length
+- [x] Header Checksum
+- [x] Source Address
+- [x] Destination Address
+
+All header fields are parsed. Semantic validation (checksum verification,
+buffer/length consistency checks) is the next step.
 
 ### Other protocols
 

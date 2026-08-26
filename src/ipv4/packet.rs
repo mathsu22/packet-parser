@@ -10,15 +10,13 @@ use crate::ipv4::{
     dscp_ecn::{dscp_name, ecn_keyword},
     errors::Ipv4Error,
     flags::IpFlags,
+    protocol::IpProtocol,
 };
-use std::fmt;
-
-// Minimum number of bytes required to parse the fields implemented so far.
-const MIN_PARSE_LENGTH: usize = 8;
+use std::{fmt, net::Ipv4Addr};
 
 // IPv4 IHL is expressed in 32-bit words.
 // 5 words × 4 bytes = 20 bytes minimum.
-//const MIN_HEADER_LENGTH: usize = 20;
+const MIN_HEADER_LENGTH: usize = 20;
 
 const MIN_IHL_VALUE: u8 = 5;
 const IPV4_VERSION: u8 = 4;
@@ -32,14 +30,19 @@ pub struct Ipv4Header {
     pub identification: u16,
     pub flags: IpFlags,
     pub fragment_offset: u16,
+    pub ttl: u8,
+    pub protocol: IpProtocol,
+    pub checksum: u16,
+    pub source_address: Ipv4Addr,
+    pub destination_address: Ipv4Addr,
 }
 
 impl Ipv4Header {
     /// Parses an IPv4 header from its raw bytes.
     pub fn parse(buf: &[u8]) -> Result<Self, Ipv4Error> {
-        if buf.len() < MIN_PARSE_LENGTH {
+        if buf.len() < MIN_HEADER_LENGTH {
             return Err(Ipv4Error::InvalidBufferLength {
-                expected: MIN_PARSE_LENGTH,
+                expected: MIN_HEADER_LENGTH,
                 got: buf.len(),
             });
         }
@@ -116,6 +119,16 @@ impl Ipv4Header {
         // & 0x1FFF to isolate the fragment offset (13 bits)
         let fragment_offset = word & 0x1FFF;
 
+        //  BYTES 8..=11 — TTL, protocol, header checksum
+        let ttl = buf[8];
+        let protocol = IpProtocol::from(buf[9]);
+        let checksum = u16::from_be_bytes([buf[10], buf[11]]);
+
+        //  BYTES 12..=15 — source IP
+        let source_address = Ipv4Addr::new(buf[12], buf[13], buf[14], buf[15]);
+        //  BYTES 16..=19 — destination IP
+        let destination_address = Ipv4Addr::new(buf[16], buf[17], buf[18], buf[19]);
+
         Ok(Self {
             version,
             ihl,
@@ -125,6 +138,11 @@ impl Ipv4Header {
             identification,
             flags,
             fragment_offset,
+            ttl,
+            protocol,
+            checksum,
+            source_address,
+            destination_address,
         })
     }
 }
@@ -148,6 +166,11 @@ impl fmt::Display for Ipv4Header {
             Identification: {:#06x} ({}) \n\
             Flags: {:#04x}, {} {}\n\
             Fragment Offset: {} \n\
+            Time to Live: {} \n\
+            Protocol: {} ({})\n\
+            Header Checksum: {:#06x} \n\
+            Source Address: {} \n\
+            Destination Address: {} \
             ",
             self.version,
             self.ihl * 4,
@@ -162,6 +185,12 @@ impl fmt::Display for Ipv4Header {
             self.flags,
             reserved_warning,
             self.fragment_offset,
+            self.ttl,
+            self.protocol,
+            self.protocol.value(),
+            self.checksum,
+            self.source_address,
+            self.destination_address,
         )
     }
 }
