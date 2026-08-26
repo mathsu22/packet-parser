@@ -6,13 +6,8 @@
 //! and every layer above it decodes garbage — or you read out of bounds. So
 //! this is where careful, length-driven parsing really starts to matter.
 
-use crate::ipv4::{
-    dscp_ecn::{dscp_name, ecn_keyword},
-    errors::Ipv4Error,
-    flags::IpFlags,
-    protocol::IpProtocol,
-};
-use std::{fmt, net::Ipv4Addr};
+use crate::ipv4::{errors::Ipv4Error, flags::IpFlags, protocol::IpProtocol};
+use std::net::Ipv4Addr;
 
 // IPv4 IHL is expressed in 32-bit words.
 // 5 words × 4 bytes = 20 bytes minimum.
@@ -21,19 +16,33 @@ const MIN_HEADER_LENGTH: usize = 20;
 const MIN_IHL_VALUE: u8 = 5;
 const IPV4_VERSION: u8 = 4;
 
+/// Represents the decoded fields of an IPv4 packet header.
 pub struct Ipv4Header {
+    /// IP version. Always 4 for this parser (enforced during `parse`).
     pub version: u8,
+    /// Internet Header Length, in 32-bit words (minimum 5 = 20 bytes).
     pub ihl: u8,
+    /// Differentiated Services Code Point (6 bits of the DS field).
     pub dscp: u8,
+    /// Explicit Congestion Notification (2 bits of the DS field).
     pub ecn: u8,
+    /// Total length of the IP packet (header + payload), in bytes.
     pub total_length: u16,
+    /// Identifies fragments belonging to the same original datagram.
     pub identification: u16,
+    /// The 3-bit control flags (reserved, don't-fragment, more-fragments).
     pub flags: IpFlags,
+    /// Offset of this fragment within the original datagram, in 8-byte units.
     pub fragment_offset: u16,
+    /// Time to Live: max hops before the packet is discarded.
     pub ttl: u8,
+    /// The payload protocol (ICMP, TCP, UDP, or unknown).
     pub protocol: IpProtocol,
+    /// Header checksum, for error-checking the header only.
     pub checksum: u16,
+    /// Source IPv4 address.
     pub source_address: Ipv4Addr,
+    /// Destination IPv4 address.
     pub destination_address: Ipv4Addr,
 }
 
@@ -144,53 +153,5 @@ impl Ipv4Header {
             source_address,
             destination_address,
         })
-    }
-}
-
-// Output formatting inspired by Wireshark.
-impl fmt::Display for Ipv4Header {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let reserved_warning = if self.flags.is_anomalous() {
-            "- [Expert Info (Warning/Protocol): Reserved bit is set (must be zero)]"
-        } else {
-            ""
-        };
-
-        write!(
-            f,
-            "\
-            Version: {} \n\
-            Header Length: {} bytes ({}) \n\
-            Differentiated Services Field: {:#04x} (DSCP: {}, ECN: {}) \n\
-            Total Length: {} \n\
-            Identification: {:#06x} ({}) \n\
-            Flags: {:#04x}, {} {}\n\
-            Fragment Offset: {} \n\
-            Time to Live: {} \n\
-            Protocol: {} ({})\n\
-            Header Checksum: {:#06x} \n\
-            Source Address: {} \n\
-            Destination Address: {} \
-            ",
-            self.version,
-            self.ihl * 4,
-            self.ihl,
-            (self.dscp << 2) | self.ecn,
-            dscp_name(self.dscp),
-            ecn_keyword(self.ecn),
-            self.total_length,
-            self.identification,
-            self.identification,
-            self.flags.as_byte(),
-            self.flags,
-            reserved_warning,
-            self.fragment_offset,
-            self.ttl,
-            self.protocol,
-            self.protocol.value(),
-            self.checksum,
-            self.source_address,
-            self.destination_address,
-        )
     }
 }

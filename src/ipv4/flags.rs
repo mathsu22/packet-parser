@@ -6,13 +6,16 @@
 
 use std::fmt;
 
+/// The 3-bit Flags field from the IPv4 header, decoded into named booleans.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct IpFlags {
+    /// Bit 2 — must be zero; a set bit is a protocol anomaly, not an error.
     pub reserved: bool,
+    /// Bit 1 (DF) — if true, this packet must not be fragmented.
     pub dont_fragment: bool,
+    /// Bit 0 (MF) — if true, more fragments of this datagram follow.
     pub more_fragments: bool,
 }
-
 impl IpFlags {
     /// Parses the 3-bit flags field into individual boolean flags.
     pub fn parse(flags_value: u8) -> Self {

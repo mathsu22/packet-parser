@@ -1,3 +1,5 @@
+//! The Protocol field as an enum, with parsing to/from its numeric value.
+
 use std::fmt;
 
 // TODO: implement the remaining protocols
@@ -5,9 +7,14 @@ use std::fmt;
 /// The 8-bit "Protocol" field: what the IPv4 payload is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum IpProtocol {
+    /// Internet Control Message Protocol (IANA number 1).
     Icmp,
+    /// Transmission Control Protocol (IANA number 6).
     Tcp,
+    /// User Datagram Protocol (IANA number 17).
     Udp,
+    /// A protocol number not yet mapped by this parser;
+    /// carries the raw IANA number.
     Unknown(u8),
 }
 
@@ -25,6 +32,7 @@ impl From<u8> for IpProtocol {
 
 // Convert protocol enum to u8
 impl IpProtocol {
+    /// Returns the protocol number for this variant.
     pub fn value(self) -> u8 {
         match self {
             Self::Icmp => 1,
