@@ -8,15 +8,19 @@
 //!
 //! - [`packet`] — the [`Ipv4Header`] struct and the parsing logic
 //! - [`errors`] — [`Ipv4Error`]: every way parsing can fail
-//! - [`protocol`] — the Protocol field as an enum
-//! - [`flags`] — the 3-bit Flags field from the IPv4 header, decoded into named booleans
-//! - `display` — Wireshark-style formatting for [`Ipv4Header`]
-//! - `dscp_ecn` — helpers for interpreting DSCP and ECN values
+//! - [`anomalies`] — [`Ipv4Anomaly`](crate::ipv4::anomalies::Ipv4Anomaly): non-fatal protocol anomalies detected during parsing
+//! - [`protocol`] — [`IpProtocol`](crate::ipv4::protocol::IpProtocol): the Protocol field as an enum
+//! - [`flags`] — [`IpFlags`](crate::ipv4::flags::IpFlags): the 3-bit Flags field from the IPv4 header, decoded into named booleans
+//! - [`checksum`] — [`checksum()`](crate::ipv4::checksum::checksum): header checksum computation and verification (RFC 1071)
+//! - [`display`] — Wireshark-style formatting for [`Ipv4Header`]
+//! - [`dscp_ecn`] — helpers for interpreting DSCP and ECN values
 
 use crate::ipv4::{errors::Ipv4Error, packet::Ipv4Header};
 
-mod display;
-mod dscp_ecn;
+pub mod anomalies;
+pub mod checksum;
+pub mod display;
+pub mod dscp_ecn;
 pub mod errors;
 pub mod flags;
 pub mod packet;

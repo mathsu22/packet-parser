@@ -2,24 +2,28 @@
 
 use thiserror::Error;
 
-/// Everything that can go wrong while parsing an IPv4 header.
+/// Errors that can occur while parsing an IPv4 packet.
+///
+/// Reference: [RFC 6274 - Security Assessment of IPv4](https://www.rfc-editor.org/info/rfc6274/)
 #[derive(Error, Debug)]
 pub enum Ipv4Error {
-    /// The buffer is shorter than a valid IPv4 header requires.
-    // <https://www.rfc-editor.org/info/rfc6274/#section-3.2>
-    #[error("Invalid Buffer Length: Minimum {expected} Bytes, Got {got}")]
-    InvalidBufferLength {
-        /// The minimum number of bytes a valid header needs.
+    /// The provided buffer is smaller than the minimum size of an IPv4 header.
+    #[error(
+        "Buffer too short for a minimal IPv4 header: need at least {expected} bytes, got {got}"
+    )]
+    BufferTooShortForHeader {
+        /// The minimum number of bytes required (always 20).
         expected: usize,
-        /// The number of bytes actually present in the buffer.
+        /// The actual number of bytes present in the buffer.
         got: usize,
     },
 
-    /// The IHL field is below the minimum valid value (5).
-    #[error("Invalid IHL: ({0}), minimum (5)")]
-    InvalidIhl(u8),
-
     /// The Version field is invalid; it must be 4.
-    #[error("Invalid Version: ({0}), Expected 4")]
-    InvalidVersion(u8),
+    #[error("Invalid Version: {version}, expected 4 (raw byte 0 = {raw:#04x})")]
+    InvalidVersion {
+        /// The extracted VERSION value.
+        version: u8,
+        /// The raw first byte of the header.
+        raw: u8,
+    },
 }

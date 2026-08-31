@@ -1,5 +1,11 @@
-//https://www.iana.org/assignments/dscp-registry
+//! Byte 1 of the IPv4 header: the Differentiated Services (DS) field,
+//! split into DSCP (6 bits) + ECN (2 bits). In RFC 791 this was the
+//! "Type of Service" byte; RFC 2474 redefined it.
+//!
+//! Registry: <https://www.iana.org/assignments/dscp-registry/>
 
+/// Maps a DSCP codepoint (0..=63) to its IANA registry name
+/// (`CS0`, `EF`, `AF41`, ...). Unmapped values return "Unknown".
 // TODO: Complete the DSCP value mapping.
 pub fn dscp_name(dscp_value: u8) -> &'static str {
     match dscp_value {
@@ -10,6 +16,7 @@ pub fn dscp_name(dscp_value: u8) -> &'static str {
     }
 }
 
+/// Maps the 2-bit ECN value (0..=3) to its RFC 3168 keyword.
 pub fn ecn_keyword(ecn_value: u8) -> &'static str {
     match ecn_value {
         0 => "Not-ECT", // (Not ECN-Capable Transport)
