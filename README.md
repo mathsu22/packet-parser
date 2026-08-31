@@ -28,13 +28,12 @@ strong foundation for security and ethical hacking.
 - [x] Source Address
 - [x] Destination Address
 
-All header fields are parsed. Semantic validation (checksum verification,
-buffer/length consistency checks) is the next step.
+All header fields are parsed, with non-fatal anomaly detection (Wireshark-style"Expert Info" warnings) for malformed or inconsistent headers — invalid IHL,length contradictions, truncated captures, reserved bits. The header checksumis verified (RFC 1071) and reported inline on the checksum line — correct /incorrect / unverified — rather than as an anomaly. Every path is coveredby tests.
 
 ### Other protocols
 
-- [ ] TCP header parsing
 - [ ] ICMP header parsing
+- [ ] TCP header parsing
 
 
 ## Running
@@ -47,4 +46,4 @@ cargo run
 
 - [RFC 791 – Internet Protocol](https://www.rfc-editor.org/rfc/rfc791)
 - [RFC 6274 – Security Assessment of IPv4](https://www.rfc-editor.org/info/rfc6274/)
-- [RFC 3168 – Explicit Congestion Notification (ECN)](https://www.rfc-editor.org/info/rfc3168/)
+- [RFC 1071 – Computing the Internet Checksum](https://www.rfc-editor.org/info/rfc1071)
