@@ -1,13 +1,15 @@
-//! IPv4 header checksum computation and verification (RFC 1071).
+//! Internet checksum computation and verification (RFC 1071).
 //!
 //! The checksum is the 16-bit one's complement of the one's complement sum
-//! of all 16-bit words in the header. For verification purposes, computing
-//! the checksum over the entire header (including the checksum field itself)
-//! should yield zero.
-
+//! of all 16-bit words in the buffer. This algorithm is shared across
+//! IPv4, ICMP, TCP, and UDP — each protocol just decides what bytes to
+//! run it over (e.g. TCP includes a pseudo-header; ICMP doesn't).
+//!
+//! For verification purposes, computing the checksum over data that
+//! already includes a correct checksum field should yield zero.
 use std::fmt;
 
-/// Computes the IPv4 header checksum over the given buffer.
+/// Computes the Internet checksum (RFC 1071) over the given buffer.
 pub fn checksum(buf: &[u8]) -> u16 {
     let mut sum: u32 = 0;
 
@@ -28,7 +30,7 @@ pub fn checksum(buf: &[u8]) -> u16 {
     !(sum as u16)
 }
 
-/// Result of verifying an IPv4 header checksum.
+/// Result of verifying a checksum.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ChecksumStatus {
     /// The sum over the header (checksum field included) is zero.

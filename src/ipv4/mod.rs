@@ -11,14 +11,15 @@
 //! - [`anomalies`] — [`Ipv4Anomaly`](crate::ipv4::anomalies::Ipv4Anomaly): non-fatal protocol anomalies detected during parsing
 //! - [`protocol`] — [`IpProtocol`](crate::ipv4::protocol::IpProtocol): the Protocol field as an enum
 //! - [`flags`] — [`IpFlags`](crate::ipv4::flags::IpFlags): the 3-bit Flags field from the IPv4 header, decoded into named booleans
-//! - [`checksum`] — [`checksum()`](crate::ipv4::checksum::checksum): header checksum computation and verification (RFC 1071)
 //! - [`display`] — Wireshark-style formatting for [`Ipv4Header`]
 //! - [`dscp_ecn`] — helpers for interpreting DSCP and ECN values
+//!
+//! Checksum computation ([`crate::checksum`]) lives at the crate root,
+//! since it's shared with other protocols (ICMP, TCP, UDP).
 
 use crate::ipv4::{errors::Ipv4Error, packet::Ipv4Header};
 
 pub mod anomalies;
-pub mod checksum;
 pub mod display;
 pub mod dscp_ecn;
 pub mod errors;
@@ -36,8 +37,8 @@ pub mod protocol;
 ///
 /// Propagates an [`Ipv4Error`] if `buf` does not contain a valid
 /// IPv4 header.
-pub fn header(buf: &[u8]) -> Result<Ipv4Header, Ipv4Error> {
-    let data_header = Ipv4Header::parse(buf)?;
+pub fn header(buf: &[u8]) -> Result<(Ipv4Header, &[u8]), Ipv4Error> {
+    let (data_header, payload) = Ipv4Header::parse(buf)?;
 
     println!(
         "Internet Protocol Version 4, Src: {}, Dst: {}",
@@ -45,5 +46,5 @@ pub fn header(buf: &[u8]) -> Result<Ipv4Header, Ipv4Error> {
     );
     println!("{}", data_header);
 
-    Ok(data_header)
+    Ok((data_header, payload))
 }

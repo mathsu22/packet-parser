@@ -8,6 +8,7 @@
 
 #![warn(missing_docs)]
 
+pub mod checksum;
 pub mod ipv4;
 
 // ICMP echo request packet (ping):
@@ -40,18 +41,22 @@ const PACKET_TEST: &[u8] = &[
 /// since the packet is hard-coded, would indicate a bug in the parser.
 pub fn run() -> Result<(), ipv4::errors::Ipv4Error> {
     print_packet();
-    ipv4::header(PACKET_TEST)?;
+    let (_header, _payload) = ipv4::header(PACKET_TEST)?;
 
     Ok(())
 }
 
 fn print_packet() {
     println!("Datagram IP: ({}) Bytes:", PACKET_TEST.len());
-    for chunks in PACKET_TEST.chunks(8) {
+    for (i, chunks) in PACKET_TEST.chunks(8).enumerate() {
         for b in chunks {
             print!("{:02x} ", b);
         }
-        print!("  ");
+        if (i + 1) % 5 == 0 {
+            println!();
+        } else {
+            print!("  ");
+        }
     }
     println!("\n");
 }

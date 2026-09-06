@@ -6,12 +6,9 @@
 //! and every layer above it decodes garbage — or you read out of bounds. So
 //! this is where careful, length-driven parsing really starts to matter.
 
-use crate::ipv4::{
-    anomalies::Ipv4Anomaly,
+use crate::{
     checksum::{ChecksumStatus, checksum},
-    errors::Ipv4Error,
-    flags::IpFlags,
-    protocol::IpProtocol,
+    ipv4::{anomalies::Ipv4Anomaly, errors::Ipv4Error, flags::IpFlags, protocol::IpProtocol},
 };
 use std::net::Ipv4Addr;
 
@@ -59,7 +56,7 @@ pub struct Ipv4Header {
 
 impl Ipv4Header {
     /// Parses an IPv4 header from its raw bytes.
-    pub fn parse(buf: &[u8]) -> Result<Self, Ipv4Error> {
+    pub fn parse(buf: &[u8]) -> Result<(Self, &[u8]), Ipv4Error> {
         let buf_length = buf.len();
         if buf_length < MIN_HEADER_LENGTH {
             return Err(Ipv4Error::BufferTooShortForHeader {
@@ -194,6 +191,8 @@ impl Ipv4Header {
         //  BYTES 16..=19 — destination IP
         let destination_address = Ipv4Addr::new(buf[16], buf[17], buf[18], buf[19]);
 
+        // The checksum is only verifiable when the complete declared header
+        // is present in the captured buffer.
         let checksum_status = if buf_length < declared_header_length {
             ChecksumStatus::NotVerifiable
         } else if checksum(&buf[..header_length]) == 0 {
@@ -202,23 +201,29 @@ impl Ipv4Header {
             ChecksumStatus::Bad
         };
 
-        Ok(Self {
-            version,
-            ihl,
-            dscp,
-            ecn,
-            total_length,
-            identification,
-            flags,
-            fragment_offset,
-            ttl,
-            protocol,
-            header_checksum,
-            source_address,
-            destination_address,
-            checksum_status,
-            anomalies,
-        })
+        // Everything after the IPv4 header belongs to the payload.
+        let payload = &buf[header_length..];
+
+        Ok((
+            Self {
+                version,
+                ihl,
+                dscp,
+                ecn,
+                total_length,
+                identification,
+                flags,
+                fragment_offset,
+                ttl,
+                protocol,
+                header_checksum,
+                source_address,
+                destination_address,
+                checksum_status,
+                anomalies,
+            },
+            payload,
+        ))
     }
 }
 
@@ -232,7 +237,7 @@ mod tests {
     // Ground truth: this packet was captured for real and checked
     #[test]
     fn parses_the_sample_packet() {
-        let h = Ipv4Header::parse(PACKET_TEST).unwrap();
+        let (h, _payload) = Ipv4Header::parse(PACKET_TEST).unwrap();
         assert_eq!(h.version, 4);
         assert_eq!(h.ihl, 5);
         assert_eq!(h.total_length, 84);
@@ -286,7 +291,7 @@ mod tests {
         // The parser doesn't abort: it clamps to the minimum and flags the anomaly.
         let mut pkt = PACKET_TEST.to_vec();
         pkt[0] = 0x44; // version 4, IHL 4
-        let h = Ipv4Header::parse(&pkt).unwrap();
+        let (h, _payload) = Ipv4Header::parse(&pkt).unwrap();
         assert!(h.anomalies.contains(&Ipv4Anomaly::InvalidIhl(4)));
     }
 
@@ -298,7 +303,7 @@ mod tests {
         // longer than what's actually available.
         let mut pkt = PACKET_TEST.to_vec();
         pkt[0] = 0x46; // version 4, IHL 6
-        let h = Ipv4Header::parse(&pkt[..20]).unwrap();
+        let (h, _payload) = Ipv4Header::parse(&pkt[..20]).unwrap();
         assert!(h.anomalies.contains(&Ipv4Anomaly::HeaderLongerThanCapture {
             captured: 20,
             declared: 24,
@@ -316,7 +321,7 @@ mod tests {
         // logically impossible for a real datagram.
         let mut pkt = PACKET_TEST.to_vec();
         pkt[3] = 0x13; // total_length = 19
-        let h = Ipv4Header::parse(&pkt).unwrap();
+        let (h, _payload) = Ipv4Header::parse(&pkt).unwrap();
         assert_eq!(h.total_length, 19);
         assert!(
             h.anomalies
@@ -332,7 +337,7 @@ mod tests {
         // The header declares 84 bytes, but only 83 were captured — a
         // truncated capture. The header itself is intact, so the checksum
         // still verifies fine; only the payload is short.
-        let h = Ipv4Header::parse(&PACKET_TEST[..83]).unwrap();
+        let (h, _payload) = Ipv4Header::parse(&PACKET_TEST[..83]).unwrap();
         assert!(
             h.anomalies
                 .contains(&Ipv4Anomaly::TotalLengthExceedsCapture { captured: 83 })
@@ -345,7 +350,7 @@ mod tests {
         // word = 0xA000 → flags = 0b101 (Reserved + More Fragments).
         let mut pkt = PACKET_TEST.to_vec();
         pkt[6] = 0xA0;
-        let h = Ipv4Header::parse(&pkt).unwrap();
+        let (h, _payload) = Ipv4Header::parse(&pkt).unwrap();
         assert!(h.flags.reserved);
         assert_eq!(h.anomalies, vec![Ipv4Anomaly::ReservedFlagSet]);
     }
@@ -357,7 +362,7 @@ mod tests {
         // and the corrupted field is still readable.
         let mut pkt = PACKET_TEST.to_vec();
         pkt[8] ^= 0xFF; // TTL: 0x40 → 0xBF
-        let h = Ipv4Header::parse(&pkt).unwrap();
+        let (h, _payload) = Ipv4Header::parse(&pkt).unwrap();
         assert_eq!(h.checksum_status, ChecksumStatus::Bad);
         assert_eq!(h.ttl, 0xBF);
         assert!(h.anomalies.is_empty());
@@ -371,7 +376,7 @@ mod tests {
         let mut pkt = PACKET_TEST.to_vec();
         pkt[0] = 0x46;
         pkt[3] = 0x16; // total_length = 22
-        let h = Ipv4Header::parse(&pkt[..20]).unwrap();
+        let (h, _payload) = Ipv4Header::parse(&pkt[..20]).unwrap();
         assert!(h.anomalies.contains(&Ipv4Anomaly::HeaderLongerThanCapture {
             captured: 20,
             declared: 24,
@@ -395,7 +400,7 @@ mod tests {
         // LONGER than the datagram: excess bytes are not an anomaly.
         let mut padded = PACKET_TEST.to_vec();
         padded.extend_from_slice(&[0x00; 6]); // fake Ethernet padding
-        let h = Ipv4Header::parse(&padded).unwrap();
+        let (h, _payload) = Ipv4Header::parse(&padded).unwrap();
         assert!(h.anomalies.is_empty());
         assert_eq!(h.checksum_status, ChecksumStatus::Good);
     }
