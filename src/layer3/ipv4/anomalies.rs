@@ -4,7 +4,7 @@ use std::fmt;
 
 /// Anomalies detected during IPv4 header parsing.
 ///
-/// Unlike [`Ipv4Error`](crate::ipv4::errors::Ipv4Error), these do not halt parsing.
+/// Unlike [`Ipv4Error`](crate::layer3::ipv4::errors::Ipv4Error), these do not halt parsing.
 /// They are collected and displayed as "Expert Info" warnings, mimicking Wireshark.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Ipv4Anomaly {

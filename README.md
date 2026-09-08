@@ -13,28 +13,16 @@ strong foundation for security and ethical hacking.
 
 ## What it does so far
 
-### IPv4
+### Layer 2
+- [x] Ethernet II
 
-- [x] Version
-- [x] IHL
-- [x] DSCP / ECN
-- [x] Total Length
-- [x] Identification
-- [x] Flags / Fragment Offset
-- [x] TTL
-- [x] Protocol
-- [x] Header Length
-- [x] Header Checksum
-- [x] Source Address
-- [x] Destination Address
+### Layer 3
+- [x] IPv4 (full header + anomaly detection + checksum verification)
+- [ ] ICMP
 
-All header fields are parsed, with non-fatal anomaly detection (Wireshark-style"Expert Info" warnings) for malformed or inconsistent headers — invalid IHL,length contradictions, truncated captures, reserved bits. The header checksumis verified (RFC 1071) and reported inline on the checksum line — correct /incorrect / unverified — rather than as an anomaly. Every path is coveredby tests.
-
-### Other protocols
-
-- [ ] ICMP header parsing
-- [ ] TCP header parsing
-
+### Layer 4
+- [ ] TCP
+- [ ] UDP
 
 ## Running
 
@@ -42,8 +30,11 @@ All header fields are parsed, with non-fatal anomaly detection (Wireshark-style"
 cargo run
 ```
 
-## References
+## Documentation
 
-- [RFC 791 – Internet Protocol](https://www.rfc-editor.org/rfc/rfc791)
-- [RFC 6274 – Security Assessment of IPv4](https://www.rfc-editor.org/info/rfc6274/)
-- [RFC 1071 – Computing the Internet Checksum](https://www.rfc-editor.org/info/rfc1071)
+Protocol references (RFCs, IEEE standards, IANA registries) live in each
+module's documentation. Browse them with:
+
+```bash
+cargo doc --open
+```

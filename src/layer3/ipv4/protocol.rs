@@ -1,9 +1,11 @@
 //! The Protocol field as an enum, with parsing to/from its numeric value.
+//!
+//! <https://www.iana.org/assignments/protocol-numbers>
+//!
 
 use std::fmt;
 
 // TODO: implement the remaining protocols
-// https://www.iana.org/assignments/protocol-numbers
 /// The 8-bit "Protocol" field: what the IPv4 payload is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum IpProtocol {

@@ -8,7 +8,9 @@
 
 use crate::{
     checksum::{ChecksumStatus, checksum},
-    ipv4::{anomalies::Ipv4Anomaly, errors::Ipv4Error, flags::IpFlags, protocol::IpProtocol},
+    layer3::ipv4::{
+        anomalies::Ipv4Anomaly, errors::Ipv4Error, flags::IpFlags, protocol::IpProtocol,
+    },
 };
 use std::net::Ipv4Addr;
 
@@ -123,7 +125,6 @@ impl Ipv4Header {
         }
         let declared_header_length = header_length;
 
-        // Ex.: buffer cannot be 20 bytes and header_length be 24
         if buf_length < header_length {
             anomalies.push(Ipv4Anomaly::HeaderLongerThanCapture {
                 captured: buf_length,
@@ -232,12 +233,17 @@ mod tests {
     use super::*;
     use crate::PACKET_TEST;
 
+    // `PACKET_TEST` with the Ethernet header stripped off
+    fn ipv4_test_packet() -> &'static [u8] {
+        &PACKET_TEST[14..]
+    }
+
     // happy path
 
     // Ground truth: this packet was captured for real and checked
     #[test]
     fn parses_the_sample_packet() {
-        let (h, _payload) = Ipv4Header::parse(PACKET_TEST).unwrap();
+        let (h, _payload) = Ipv4Header::parse(ipv4_test_packet()).unwrap();
         assert_eq!(h.version, 4);
         assert_eq!(h.ihl, 5);
         assert_eq!(h.total_length, 84);
@@ -262,7 +268,7 @@ mod tests {
 
     #[test]
     fn rejects_buffer_one_byte_below_minimum() {
-        let err = Ipv4Header::parse(&PACKET_TEST[..19]).unwrap_err();
+        let err = Ipv4Header::parse(&ipv4_test_packet()[..19]).unwrap_err();
         assert!(matches!(
             err,
             Ipv4Error::BufferTooShortForHeader {
@@ -274,7 +280,7 @@ mod tests {
 
     #[test]
     fn rejects_ipv6_fed_to_ipv4_parser() {
-        let mut pkt = PACKET_TEST.to_vec();
+        let mut pkt = ipv4_test_packet().to_vec();
         pkt[0] = 0x60;
         assert!(matches!(
             Ipv4Header::parse(&pkt).unwrap_err(),
@@ -289,7 +295,7 @@ mod tests {
     fn anomaly_invalid_ihl_below_minimum() {
         // IHL 4 (16-byte header) is below the RFC minimum of 5 (20 bytes).
         // The parser doesn't abort: it clamps to the minimum and flags the anomaly.
-        let mut pkt = PACKET_TEST.to_vec();
+        let mut pkt = ipv4_test_packet().to_vec();
         pkt[0] = 0x44; // version 4, IHL 4
         let (h, _payload) = Ipv4Header::parse(&pkt).unwrap();
         assert!(h.anomalies.contains(&Ipv4Anomaly::InvalidIhl(4)));
@@ -301,7 +307,7 @@ mod tests {
         // Both the header-vs-capture and total-length-vs-capture checks fire,
         // and the checksum can't be verified since the declared header is
         // longer than what's actually available.
-        let mut pkt = PACKET_TEST.to_vec();
+        let mut pkt = ipv4_test_packet().to_vec();
         pkt[0] = 0x46; // version 4, IHL 6
         let (h, _payload) = Ipv4Header::parse(&pkt[..20]).unwrap();
         assert!(h.anomalies.contains(&Ipv4Anomaly::HeaderLongerThanCapture {
@@ -319,7 +325,7 @@ mod tests {
     fn anomaly_header_exceeding_total_length() {
         // total_length = 19 is smaller than the 20-byte header itself —
         // logically impossible for a real datagram.
-        let mut pkt = PACKET_TEST.to_vec();
+        let mut pkt = ipv4_test_packet().to_vec();
         pkt[3] = 0x13; // total_length = 19
         let (h, _payload) = Ipv4Header::parse(&pkt).unwrap();
         assert_eq!(h.total_length, 19);
@@ -337,7 +343,7 @@ mod tests {
         // The header declares 84 bytes, but only 83 were captured — a
         // truncated capture. The header itself is intact, so the checksum
         // still verifies fine; only the payload is short.
-        let (h, _payload) = Ipv4Header::parse(&PACKET_TEST[..83]).unwrap();
+        let (h, _payload) = Ipv4Header::parse(&ipv4_test_packet()[..83]).unwrap();
         assert!(
             h.anomalies
                 .contains(&Ipv4Anomaly::TotalLengthExceedsCapture { captured: 83 })
@@ -348,7 +354,7 @@ mod tests {
     #[test]
     fn anomaly_reserved_bit_set() {
         // word = 0xA000 → flags = 0b101 (Reserved + More Fragments).
-        let mut pkt = PACKET_TEST.to_vec();
+        let mut pkt = ipv4_test_packet().to_vec();
         pkt[6] = 0xA0;
         let (h, _payload) = Ipv4Header::parse(&pkt).unwrap();
         assert!(h.flags.reserved);
@@ -360,7 +366,7 @@ mod tests {
         // Flipping the TTL byte corrupts the checksum, but doesn't touch
         // any of the length/version/IHL fields — parsing still succeeds,
         // and the corrupted field is still readable.
-        let mut pkt = PACKET_TEST.to_vec();
+        let mut pkt = ipv4_test_packet().to_vec();
         pkt[8] ^= 0xFF; // TTL: 0x40 → 0xBF
         let (h, _payload) = Ipv4Header::parse(&pkt).unwrap();
         assert_eq!(h.checksum_status, ChecksumStatus::Bad);
@@ -373,7 +379,7 @@ mod tests {
         // buf=20, IHL=6 (declares 24), total=22: the packet contradicts
         // itself three ways, and all three findings must be recorded —
         // the clamped read length must NOT suppress any of them.
-        let mut pkt = PACKET_TEST.to_vec();
+        let mut pkt = ipv4_test_packet().to_vec();
         pkt[0] = 0x46;
         pkt[3] = 0x16; // total_length = 22
         let (h, _payload) = Ipv4Header::parse(&pkt[..20]).unwrap();
@@ -398,7 +404,7 @@ mod tests {
     fn accepts_padding_beyond_total_length() {
         // Ethernet pads small frames, so a capture can legitimately be
         // LONGER than the datagram: excess bytes are not an anomaly.
-        let mut padded = PACKET_TEST.to_vec();
+        let mut padded = ipv4_test_packet().to_vec();
         padded.extend_from_slice(&[0x00; 6]); // fake Ethernet padding
         let (h, _payload) = Ipv4Header::parse(&padded).unwrap();
         assert!(h.anomalies.is_empty());

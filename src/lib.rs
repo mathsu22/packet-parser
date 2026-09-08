@@ -8,13 +8,22 @@
 
 #![warn(missing_docs)]
 
+use crate::layer2::ethernet::EtherType;
+
 pub mod checksum;
-pub mod ipv4;
+pub mod errors;
+pub mod layer2;
+pub mod layer3;
 
 // ICMP echo request packet (ping):
 //    src 192.168.1.104 → dst 8.8.8.8
 //    proto = 1 (ICMP), TTL = 64 (Linux)
 const PACKET_TEST: &[u8] = &[
+    // Ethernet II
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, /* destination: broadcast */
+    0x00, 0x11, 0x22, 0x33, 0x44, 0x55, /* source: example MAC */
+    0x08, 0x00, /* EtherType: IPv4 */
+    // IPv4
     0x45, /* ver/ihl */
     0x00, /* dscp/ecn */
     0x00, 0x54, /* total len */
@@ -32,31 +41,41 @@ const PACKET_TEST: &[u8] = &[
     0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
 ];
 
-/// Runs the parser against a hard-coded `ICMPv4` echo-request packet,
-/// printing a Wireshark-style breakdown of its IPv4 header.
+/// Parses a hard-coded Ethernet + IPv4 + ICMP echo-request frame and prints
+/// a Wireshark-style breakdown of each dissected layer.
 ///
 /// # Errors
 ///
-/// Returns an [`ipv4::errors::Ipv4Error`] if the sample packet fails to parse — which,
-/// since the packet is hard-coded, would indicate a bug in the parser.
-pub fn run() -> Result<(), ipv4::errors::Ipv4Error> {
+/// Returns an [`errors::AppError`] if parsing fails at any layer. Because the
+/// sample frame is hard-coded, failure indicates a bug in the parser.
+pub fn run() -> Result<(), errors::AppError> {
     print_packet();
-    let (_header, _payload) = ipv4::header(PACKET_TEST)?;
+    let (eth, eth_payload) = layer2::header(PACKET_TEST)?;
+    match eth.ethertype {
+        EtherType::Ipv4 => {
+            let (_ip_header, _transp_payload) = layer3::ipv4::header(eth_payload)?;
+        }
+        other => println!("{}: not dissected yet", other),
+    }
 
     Ok(())
 }
 
 fn print_packet() {
-    println!("Datagram IP: ({}) Bytes:", PACKET_TEST.len());
-    for (i, chunks) in PACKET_TEST.chunks(8).enumerate() {
-        for b in chunks {
+    println!(
+        "Frame: {} bytes ({} bits):",
+        PACKET_TEST.len(),
+        8 * PACKET_TEST.len()
+    );
+    for (i, chunk) in PACKET_TEST.chunks(16).enumerate() {
+        print!("{:04x}  ", i * 16);
+        for (j, b) in chunk.iter().enumerate() {
             print!("{:02x} ", b);
+            if j == 7 {
+                print!(" ");
+            }
         }
-        if (i + 1) % 5 == 0 {
-            println!();
-        } else {
-            print!("  ");
-        }
+        println!();
     }
-    println!("\n");
+    println!();
 }

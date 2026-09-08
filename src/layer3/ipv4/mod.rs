@@ -8,16 +8,16 @@
 //!
 //! - [`packet`] — the [`Ipv4Header`] struct and the parsing logic
 //! - [`errors`] — [`Ipv4Error`]: every way parsing can fail
-//! - [`anomalies`] — [`Ipv4Anomaly`](crate::ipv4::anomalies::Ipv4Anomaly): non-fatal protocol anomalies detected during parsing
-//! - [`protocol`] — [`IpProtocol`](crate::ipv4::protocol::IpProtocol): the Protocol field as an enum
-//! - [`flags`] — [`IpFlags`](crate::ipv4::flags::IpFlags): the 3-bit Flags field from the IPv4 header, decoded into named booleans
+//! - [`anomalies`] — [`Ipv4Anomaly`](crate::layer3::ipv4::anomalies::Ipv4Anomaly): non-fatal protocol anomalies detected during parsing
+//! - [`protocol`] — [`IpProtocol`](crate::layer3::ipv4::protocol::IpProtocol): the Protocol field as an enum
+//! - [`flags`] — [`IpFlags`](crate::layer3::ipv4::flags::IpFlags): the 3-bit Flags field from the IPv4 header, decoded into named booleans
 //! - [`display`] — Wireshark-style formatting for [`Ipv4Header`]
 //! - [`dscp_ecn`] — helpers for interpreting DSCP and ECN values
 //!
 //! Checksum computation ([`crate::checksum`]) lives at the crate root,
 //! since it's shared with other protocols (ICMP, TCP, UDP).
 
-use crate::ipv4::{errors::Ipv4Error, packet::Ipv4Header};
+use crate::layer3::ipv4::{errors::Ipv4Error, packet::Ipv4Header};
 
 pub mod anomalies;
 pub mod display;
@@ -28,10 +28,11 @@ pub mod packet;
 pub mod protocol;
 
 /// Parses the IPv4 header from `buf` and prints a Wireshark-style
-/// breakdown of it to stdout, returning the parsed [`Ipv4Header`].
+/// breakdown of it to stdout, returning the parsed [`Ipv4Header`]
+/// and the remaining payload.
 ///
 /// Convenience wrapper around [`Ipv4Header::parse`]: parse, print,
-/// and hand the header back for further inspection.
+/// and hand the header + payload back for further inspection.
 ///
 /// # Errors
 ///
