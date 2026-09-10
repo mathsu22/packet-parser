@@ -1,4 +1,4 @@
-//! Internet checksum computation and verification (RFC 1071).
+//! Internet checksum computation and verification.
 //!
 //! The checksum is the 16-bit one's complement of the one's complement sum
 //! of all 16-bit words in the buffer. This algorithm is shared across
@@ -7,9 +7,14 @@
 //!
 //! For verification purposes, computing the checksum over data that
 //! already includes a correct checksum field should yield zero.
+//!
+//! ## References
+//!
+//! - [RFC 1071 – Computing the Internet Checksum](https://www.rfc-editor.org/info/rfc1071)
+
 use std::fmt;
 
-/// Computes the Internet checksum (RFC 1071) over the given buffer.
+/// Computes the Internet checksum over the given buffer.
 pub fn checksum(buf: &[u8]) -> u16 {
     let mut sum: u32 = 0;
 

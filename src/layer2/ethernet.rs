@@ -1,4 +1,4 @@
-//! Ethernet II framing: the Data Link layer (Layer 2).
+//! Ethernet II frame dissector.
 //!
 //! Ethernet II uses a fixed 14-byte header consisting of:
 //! - 6 bytes for the destination MAC address.

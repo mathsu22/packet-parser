@@ -1,10 +1,12 @@
 //! Every way IPv4 header parsing can fail.
+//!
+//! ## References
+//!
+//! - [RFC 6274 - Security Assessment of IPv4](https://www.rfc-editor.org/info/rfc6274/)
 
 use thiserror::Error;
 
 /// Errors that can occur while parsing an IPv4 packet.
-///
-/// Reference: [RFC 6274 - Security Assessment of IPv4](https://www.rfc-editor.org/info/rfc6274/)
 #[derive(Error, Debug)]
 pub enum Ipv4Error {
     /// The provided buffer is smaller than the minimum size of an IPv4 header.

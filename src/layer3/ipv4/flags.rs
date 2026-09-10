@@ -6,7 +6,7 @@
 
 use std::fmt;
 
-/// The 3-bit Flags field from the IPv4 header, decoded into named booleans.
+/// The 3-bit Flags field from the IPv4 header, decoded into individual booleans.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct IpFlags {
     /// Bit 2 — must be zero; a set bit is a protocol anomaly, not an error.
@@ -26,14 +26,13 @@ impl IpFlags {
         }
     }
 
-    /// Reconstructs the packed 3-bit representation (reserved | DF | MF),
+    /// Reconstructs the packed 3-bit representation (reserved | DF | MF)
     /// for hex/debug display
     pub fn as_byte(&self) -> u8 {
         (self.reserved as u8) << 2 | (self.dont_fragment as u8) << 1 | (self.more_fragments as u8)
     }
 
-    /// A set reserved bit doesn't make the packet invalid; it's just an anomaly
-    /// worth flagging (Wireshark treats it the same way: a Warning, not an error).
+    /// A set reserved bit doesn't make the packet invalid; it's just an anomaly worth flagging.
     pub fn is_anomalous(&self) -> bool {
         self.reserved
     }

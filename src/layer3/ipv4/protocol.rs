@@ -1,7 +1,6 @@
 //! The Protocol field as an enum, with parsing to/from its numeric value.
 //!
-//! <https://www.iana.org/assignments/protocol-numbers>
-//!
+//! Registry: <https://www.iana.org/assignments/protocol-numbers>
 
 use std::fmt;
 
@@ -16,11 +15,10 @@ pub enum IpProtocol {
     /// User Datagram Protocol (IANA number 17).
     Udp,
     /// A protocol number not yet mapped by this parser;
-    /// carries the raw IANA number.
+    /// carries the raw number.
     Unknown(u8),
 }
 
-// Convert u8 to protocol enum
 impl From<u8> for IpProtocol {
     fn from(value: u8) -> Self {
         match value {
@@ -32,7 +30,6 @@ impl From<u8> for IpProtocol {
     }
 }
 
-// Convert protocol enum to u8
 impl IpProtocol {
     /// Returns the protocol number for this variant.
     pub fn value(self) -> u8 {

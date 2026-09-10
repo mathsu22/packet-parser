@@ -1,8 +1,4 @@
-//! IPv4: the Network layer (layer 3) of the protocol stack
-//! ([RFC 791](https://www.rfc-editor.org/rfc/rfc791)).
-//!
-//! The entry point is [`header`], which parses a raw byte buffer into an
-//! [`Ipv4Header`] and prints a Wireshark-style breakdown of its fields.
+//! IPv4 (Internet Protocol version 4).
 //!
 //! ## Module map
 //!
@@ -16,6 +12,10 @@
 //!
 //! Checksum computation ([`crate::checksum`]) lives at the crate root,
 //! since it's shared with other protocols (ICMP, TCP, UDP).
+//!
+//! ## References
+//!
+//! - [RFC 791 – Internet Protocol](https://www.rfc-editor.org/rfc/rfc791)
 
 use crate::layer3::ipv4::{errors::Ipv4Error, packet::Ipv4Header};
 

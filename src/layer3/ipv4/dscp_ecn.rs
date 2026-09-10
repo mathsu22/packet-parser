@@ -1,6 +1,6 @@
 //! Byte 1 of the IPv4 header: the Differentiated Services (DS) field,
-//! split into DSCP (6 bits) + ECN (2 bits). In RFC 791 this was the
-//! "Type of Service" byte; RFC 2474 redefined it.
+//! split into DSCP (6 bits) + ECN (2 bits). In RFC 791, this was the
+//! "Type of Service" field; RFC 2474 redefined it.
 //!
 //! Registry: <https://www.iana.org/assignments/dscp-registry/>
 

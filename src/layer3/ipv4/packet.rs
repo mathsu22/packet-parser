@@ -1,6 +1,6 @@
-//! Layer 3: the IPv4 packet header.
+//! IPv4 (Internet Protocol version 4) dissector.
 //!
-//! Ethernet was a fixed 14 bytes. IPv4 is *variable length*: the header is
+//! Unlike Ethernet's fixed 14-byte header, IPv4 is *variable length*: the header is
 //! normally 20 bytes but can carry up to 40 bytes of options. You don't know
 //! where the payload begins until you read the **IHL** field. Get that wrong
 //! and every layer above it decodes garbage — or you read out of bounds. So
@@ -21,7 +21,7 @@ const MIN_HEADER_LENGTH: usize = 20;
 const MIN_IHL_VALUE: u8 = 5;
 const IPV4_VERSION: u8 = 4;
 
-/// Represents the decoded fields of an IPv4 packet header.
+/// The decoded fields of an IPv4 header.
 #[derive(Debug)]
 pub struct Ipv4Header {
     /// IP version. Always 4 for this parser (enforced during `parse`).
