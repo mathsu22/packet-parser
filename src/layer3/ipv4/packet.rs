@@ -57,7 +57,21 @@ pub struct Ipv4Header {
 }
 
 impl Ipv4Header {
-    /// Parses an IPv4 header from its raw bytes.
+    /// Parses an IPv4 header from `buf`.
+    ///
+    /// Returns the decoded header and the payload — everything after
+    /// the bytes the IHL declares as header.
+    ///
+    /// Dissector semantics: only an unreadable or misrouted packet fails
+    /// (see [`Ipv4Error`]). Every other lie the header tells — invalid
+    /// IHL, lengths that contradict each other or the capture, a set
+    /// reserved bit — is recorded in [`Ipv4Header::anomalies`], with the
+    /// checksum verdict in [`Ipv4Header::checksum_status`].
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`Ipv4Error`] if the buffer is shorter than the fixed
+    /// 20-byte header, or if the version is not 4.
     pub fn parse(buf: &[u8]) -> Result<(Self, &[u8]), Ipv4Error> {
         let buf_length = buf.len();
         if buf_length < MIN_HEADER_LENGTH {

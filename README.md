@@ -8,19 +8,23 @@ low-level binary parsing, and the Rust programming language.
 > Feedback and suggestions are welcome!
 
 ## Why
+
 I'm studying networking, systems programming, and Rust to build a
 strong foundation for security and ethical hacking.
 
 ## What it does so far
 
 ### Layer 2
+
 - [x] Ethernet II
 
 ### Layer 3
+
 - [x] IPv4 (full header + anomaly detection + checksum verification)
-- [ ] ICMP
+- [x] ICMP (echo messages: common header, echo body + data, truncation anomaly)
 
 ### Layer 4
+
 - [ ] TCP
 - [ ] UDP
 

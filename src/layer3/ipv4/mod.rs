@@ -27,17 +27,15 @@ pub mod flags;
 pub mod packet;
 pub mod protocol;
 
-/// Parses the IPv4 header from `buf` and prints a Wireshark-style
-/// breakdown of it to stdout, returning the parsed [`Ipv4Header`]
-/// and the remaining payload.
+/// Parses and prints an IPv4 header.
 ///
-/// Convenience wrapper around [`Ipv4Header::parse`]: parse, print,
-/// and hand the header + payload back for further inspection.
+/// Convenience wrapper around [`Ipv4Header::parse`]: everything it
+/// returns — decoded header (anomalies included) plus payload — is
+/// handed back for further inspection.
 ///
 /// # Errors
 ///
-/// Propagates an [`Ipv4Error`] if `buf` does not contain a valid
-/// IPv4 header.
+/// Propagates any [`Ipv4Error`] from [`Ipv4Header::parse`].
 pub fn header(buf: &[u8]) -> Result<(Ipv4Header, &[u8]), Ipv4Error> {
     let (data_header, payload) = Ipv4Header::parse(buf)?;
 

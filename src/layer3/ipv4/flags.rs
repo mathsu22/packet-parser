@@ -1,8 +1,8 @@
-//! Flags: 3 bits (after the shift >> 13 in packet.rs)
+//! IPv4 header flags (3 bits).
 //!
-//! Bit 2: Reserved (must be zero)
+//! Bit 2: Reserved — must be zero
 //! Bit 1: DF — 0 = May Fragment, 1 = Don't Fragment
-//! Bit 0: MF — 0 = Last Fragment, 1 = More Fragments
+//! Bit 0: MF — 0 = No more fragments, 1 = More Fragments
 
 use std::fmt;
 

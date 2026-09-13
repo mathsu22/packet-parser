@@ -10,17 +10,15 @@ use crate::layer2::ethernet::{EthernetError, EthernetHeader};
 
 pub mod ethernet;
 
-/// Parses the Ethernet II header from `buf` and prints a Wireshark-style
-/// breakdown of it to stdout, returning the parsed [`EthernetHeader`]
-/// and the remaining payload.
+/// Parses and prints an Ethernet II header.
 ///
-/// Convenience wrapper around [`EthernetHeader::parse`]: parse, print,
-/// and hand the header + payload back for further inspection.
+/// Convenience wrapper around [`EthernetHeader::parse`]: everything
+/// it returns — decoded header plus payload — is handed back for
+/// further inspection.
 ///
 /// # Errors
 ///
-/// Propagates an [`EthernetError`] if `buf` does not contain a valid
-/// Ethernet II header.
+/// Propagates any [`EthernetError`] from [`EthernetHeader::parse`].
 pub fn header(buf: &[u8]) -> Result<(EthernetHeader, &[u8]), EthernetError> {
     let (frame_header, payload) = EthernetHeader::parse(buf)?;
 

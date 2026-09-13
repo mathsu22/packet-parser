@@ -102,18 +102,20 @@ pub struct EthernetHeader {
     pub dst_mac: MacAddress,
     /// Source MAC address.
     pub src_mac: MacAddress,
-    /// What Protocol the payload carries.
+    /// The protocol carried by the payload.
     pub ethertype: EtherType,
 }
 
 impl EthernetHeader {
-    /// Parses an Ethernet II header from `buf`, returning the header
-    /// and the remaining payload (everything after the first 14 bytes).
+    /// Parses an Ethernet II header from `buf`.
+    ///
+    /// Returns the decoded header and the payload — everything after
+    /// the fixed 14 bytes.
     ///
     /// # Errors
     ///
     /// Returns [`EthernetError::BufferTooShortForHeader`] if `buf` is
-    /// shorter than 14 bytes.
+    /// shorter than the 14-byte header.
     pub fn parse(buf: &[u8]) -> Result<(Self, &[u8]), EthernetError> {
         if buf.len() < HEADER_LENGTH {
             return Err(EthernetError::BufferTooShortForHeader {

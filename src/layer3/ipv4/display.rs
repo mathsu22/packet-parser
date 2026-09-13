@@ -49,7 +49,7 @@ impl fmt::Display for Ipv4Header {
         )?;
         self.write_checksum_status(f)?;
         writeln!(f, "Source Address: {}", self.source_address)?;
-        write!(f, "Destination Address: {}", self.destination_address)?;
+        writeln!(f, "Destination Address: {}", self.destination_address)?;
 
         Ok(())
     }

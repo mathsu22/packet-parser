@@ -45,7 +45,7 @@ impl fmt::Display for IcmpType {
         match self {
             Self::EchoReply => write!(f, "Echo (ping) reply"),
             Self::EchoRequest => write!(f, "Echo (ping) request"),
-            Self::Unknown(x) => write!(f, "Unknown ({x})"),
+            Self::Unknown(_) => write!(f, "Unknown"),
         }
     }
 }
