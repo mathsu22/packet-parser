@@ -5,7 +5,7 @@ use thiserror::Error;
 
 use crate::{
     layer2::ethernet::EthernetError,
-    layer3::{icmp::packet::IcmpError, ipv4::errors::Ipv4Error},
+    layer3::{icmp::message::IcmpError, ipv4::errors::Ipv4Error},
 };
 
 /// Errors that can occur while running the packet parser end-to-end,

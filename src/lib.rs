@@ -43,7 +43,7 @@ const PACKET_TEST: &[u8] = &[
     0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
 ];
 
-/// Parses a hard-coded Ethernet + IPv4 + ICMP echo-request frame and prints
+/// Dissects a hard-coded Ethernet + IPv4 + ICMP echo-request frame and prints
 /// a Wireshark-style breakdown of each dissected layer.
 ///
 /// # Errors
@@ -52,13 +52,13 @@ const PACKET_TEST: &[u8] = &[
 /// sample frame is hard-coded, failure indicates a bug in the parser.
 pub fn run() -> Result<(), errors::AppError> {
     print_packet();
-    let (eth, eth_payload) = layer2::header(PACKET_TEST)?;
+    let (eth, eth_payload) = layer2::dissect(PACKET_TEST)?;
     match eth.ethertype {
         EtherType::Ipv4 => {
-            let (ip_header, ipv4_payload) = layer3::ipv4::header(eth_payload)?;
+            let (ip_header, ipv4_payload) = layer3::ipv4::dissect(eth_payload)?;
             match ip_header.protocol {
                 IpProtocol::Icmp => {
-                    let (_icmp_header, _icmp_payload) = layer3::icmp::header(ipv4_payload)?;
+                    let (_icmp_message, _icmp_payload) = layer3::icmp::dissect(ipv4_payload)?;
                 }
                 other => println!("{}: not dissected yet", other),
             }

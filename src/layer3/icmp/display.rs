@@ -1,9 +1,9 @@
-//! Wireshark-style text formatting for [`IcmpHeader`].
+//! Wireshark-style text formatting for [`IcmpMessage`].
 
-use crate::layer3::icmp::{IcmpHeader, packet::IcmpMessage};
+use crate::layer3::icmp::message::{IcmpBody, IcmpMessage};
 use std::fmt;
 
-impl<'a> fmt::Display for IcmpHeader<'a> {
+impl<'a> fmt::Display for IcmpMessage<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f, "Type: {} ({})", self.type_, self.type_.value())?;
 
@@ -15,8 +15,8 @@ impl<'a> fmt::Display for IcmpHeader<'a> {
             self.checksum_, self.checksum_status
         )?;
 
-        match self.message {
-            IcmpMessage::Echo(Some(echo)) => {
+        match self.body {
+            IcmpBody::Echo(Some(echo)) => {
                 writeln!(
                     f,
                     "Identifier: {} ({:#06x})",
@@ -39,15 +39,15 @@ impl<'a> fmt::Display for IcmpHeader<'a> {
                     writeln!(f)?;
                 }
             }
-            IcmpMessage::Echo(None) => {}
-            IcmpMessage::Other => {}
+            IcmpBody::Echo(None) => {}
+            IcmpBody::Other => {}
         }
 
         self.write_anomalies(f)
     }
 }
 
-impl<'a> IcmpHeader<'a> {
+impl<'a> IcmpMessage<'a> {
     fn write_anomalies(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for anomaly in &self.anomalies {
             writeln!(f, "[Expert Info: {anomaly}]")?;

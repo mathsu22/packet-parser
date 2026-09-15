@@ -27,7 +27,7 @@ pub mod flags;
 pub mod packet;
 pub mod protocol;
 
-/// Parses and prints an IPv4 header.
+/// Dissects and prints an IPv4 header.
 ///
 /// Convenience wrapper around [`Ipv4Header::parse`]: everything it
 /// returns — decoded header (anomalies included) plus payload — is
@@ -36,7 +36,7 @@ pub mod protocol;
 /// # Errors
 ///
 /// Propagates any [`Ipv4Error`] from [`Ipv4Header::parse`].
-pub fn header(buf: &[u8]) -> Result<(Ipv4Header, &[u8]), Ipv4Error> {
+pub fn dissect(buf: &[u8]) -> Result<(Ipv4Header, &[u8]), Ipv4Error> {
     let (data_header, payload) = Ipv4Header::parse(buf)?;
 
     println!(

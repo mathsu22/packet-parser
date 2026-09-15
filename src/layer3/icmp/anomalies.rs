@@ -4,7 +4,7 @@ use std::fmt;
 
 /// Anomalies detected during ICMP message parsing.
 ///
-/// Unlike [`IcmpError`](crate::layer3::icmp::packet::IcmpError), these do not halt parsing.
+/// Unlike [`IcmpError`](crate::layer3::icmp::message::IcmpError), these do not halt parsing.
 /// They are collected and displayed as "Expert Info" warnings, mimicking Wireshark.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum IcmpAnomaly {
