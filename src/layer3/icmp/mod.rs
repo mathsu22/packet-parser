@@ -2,7 +2,7 @@
 //!
 //! ## Module map
 //!
-//! - [`message`] — the [`IcmpMessage`] struct and the parsing logic
+//! - [`message`] — the [`IcmpMessage`](crate::layer3::icmp::message::IcmpMessage) struct and the parsing logic
 //! - [`anomalies`] — [`IcmpAnomaly`](crate::layer3::icmp::anomalies::IcmpAnomaly): non-fatal protocol anomalies detected during parsing
 //! - [`types`] — [`IcmpType`](crate::layer3::icmp::types::IcmpType): the Type byte as an enum
 //! - [`display`] — Wireshark-style formatting for [`IcmpMessage`]

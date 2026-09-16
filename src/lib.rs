@@ -63,13 +63,13 @@ pub fn run() -> Result<(), errors::AppError> {
     match eth.ethertype {
         EtherType::Ipv4 => {
             let (ip_header, ipv4_payload) = Ipv4Header::parse(eth_payload)?;
-            println!("{}", ip_header);
+            print!("{}", ip_header);
             println!();
 
             match ip_header.protocol {
                 IpProtocol::Icmp => {
-                    let (message, _) = IcmpMessage::parse(ipv4_payload)?;
-                    println!("{}", message);
+                    let message = IcmpMessage::parse(ipv4_payload)?;
+                    print!("{}", message);
                     println!();
                 }
                 other => println!("{}: not dissected yet", other),

@@ -37,8 +37,9 @@ pub struct IcmpEcho<'a> {
 pub enum IcmpBody<'a> {
     /// Echo Request or Echo Reply body.
     Echo(Option<IcmpEcho<'a>>),
-    /// A type not yet mapped by this parser.
-    Other,
+    /// A type not yet mapped by this parser; carries the raw body —
+    /// everything past the 4-byte common header.
+    Other(&'a [u8]),
 }
 
 /// Every way ICMP message parsing can fail.
@@ -74,9 +75,10 @@ pub struct IcmpMessage<'a> {
 impl<'a> IcmpMessage<'a> {
     /// Parses an ICMP message from `buf`.
     ///
-    /// Returns the decoded message and the undecoded remainder — empty
-    /// for Echo messages, whose data is part of the decoded body; the raw
-    /// body for types this parser doesn't map yet.
+    /// Returns the decoded message. Echo bodies carry their data inside
+    /// [`IcmpEcho::data`]; unmapped types carry their raw body inside
+    /// [`IcmpBody::Other`]; the whole message is accounted for, nothing
+    /// is handed further down.
     ///
     /// Dissector semantics: only a buffer too short for the common 4-byte
     /// header fails (see [`IcmpError`]). When the Type demands a body that
@@ -87,7 +89,7 @@ impl<'a> IcmpMessage<'a> {
     ///
     /// Returns an [`IcmpError`] if the buffer is shorter than the fixed
     /// 4-byte common header.
-    pub fn parse(buf: &'a [u8]) -> Result<(Self, &'a [u8]), IcmpError> {
+    pub fn parse(buf: &'a [u8]) -> Result<Self, IcmpError> {
         if buf.len() < MIN_HEADER_LENGTH {
             return Err(IcmpError::BufferTooShortForHeader {
                 expected: MIN_HEADER_LENGTH,
@@ -107,39 +109,33 @@ impl<'a> IcmpMessage<'a> {
 
         let mut anomalies = Vec::new();
 
-        let (body, payload) = match type_ {
+        let body = match type_ {
             IcmpType::EchoReply | IcmpType::EchoRequest => {
                 if buf.len() >= ECHO_HEADER_LENGTH {
-                    (
-                        IcmpBody::Echo(Some(IcmpEcho {
-                            identifier: u16::from_be_bytes([buf[4], buf[5]]),
-                            sequence_number: u16::from_be_bytes([buf[6], buf[7]]),
-                            data: &buf[ECHO_HEADER_LENGTH..],
-                        })),
-                        &buf[buf.len()..],
-                    )
+                    IcmpBody::Echo(Some(IcmpEcho {
+                        identifier: u16::from_be_bytes([buf[4], buf[5]]),
+                        sequence_number: u16::from_be_bytes([buf[6], buf[7]]),
+                        data: &buf[ECHO_HEADER_LENGTH..],
+                    }))
                 } else {
                     anomalies.push(IcmpAnomaly::BodyTruncated {
                         expected: ECHO_HEADER_LENGTH,
                         got: buf.len(),
                     });
-                    (IcmpBody::Echo(None), &buf[buf.len()..])
+                    IcmpBody::Echo(None)
                 }
             }
-            _ => (IcmpBody::Other, &buf[MIN_HEADER_LENGTH..]),
+            _ => IcmpBody::Other(&buf[MIN_HEADER_LENGTH..]),
         };
 
-        Ok((
-            Self {
-                type_,
-                code,
-                checksum_,
-                checksum_status,
-                body,
-                anomalies,
-            },
-            payload,
-        ))
+        Ok(Self {
+            type_,
+            code,
+            checksum_,
+            checksum_status,
+            body,
+            anomalies,
+        })
     }
 }
 
@@ -155,7 +151,7 @@ mod tests {
 
     #[test]
     fn parses_the_sample_echo_request() {
-        let (msg, payload) = IcmpMessage::parse(icmp_test_message()).unwrap();
+        let msg = IcmpMessage::parse(icmp_test_message()).unwrap();
         assert_eq!(msg.type_, IcmpType::EchoRequest);
         assert_eq!(msg.code, 0);
         assert_eq!(msg.checksum_, 0x0ee4);
@@ -167,7 +163,6 @@ mod tests {
         assert_eq!(echo.sequence_number, 1);
         assert_eq!(echo.data.len(), 56);
         assert_eq!(&echo.data[..4], &[0x07, 0xe5, 0x8e, 0x6a]);
-        assert!(payload.is_empty()); // the data lives inside the body
         assert!(msg.anomalies.is_empty());
     }
 
@@ -175,33 +170,31 @@ mod tests {
     // the common header reads fine, but Identifier + Sequence don't fit.
     #[test]
     fn records_body_truncation_instead_of_failing() {
-        let (msg, payload) = IcmpMessage::parse(&icmp_test_message()[..7]).unwrap();
+        let msg = IcmpMessage::parse(&icmp_test_message()[..7]).unwrap();
         assert!(matches!(msg.body, IcmpBody::Echo(None)));
         assert!(msg.anomalies.contains(&IcmpAnomaly::BodyTruncated {
             expected: 8,
             got: 7,
         }));
         assert_eq!(msg.checksum_status, ChecksumStatus::Bad); // data is missing
-        assert!(payload.is_empty());
     }
 
     // Boundary: exactly 8 bytes is a legal RFC 792 message — complete
     // body, empty data. NOT truncated.
     #[test]
     fn echo_with_no_data_is_a_complete_body() {
-        let (msg, payload) = IcmpMessage::parse(&icmp_test_message()[..8]).unwrap();
+        let msg = IcmpMessage::parse(&icmp_test_message()[..8]).unwrap();
         let IcmpBody::Echo(Some(echo)) = msg.body else {
             panic!("expected a complete echo body");
         };
         assert!(echo.data.is_empty());
-        assert!(payload.is_empty());
         assert!(msg.anomalies.is_empty());
     }
 
     // Just above the fatal floor: common header present, body absent.
     #[test]
     fn four_bytes_dissect_with_truncated_body() {
-        let (msg, _) = IcmpMessage::parse(&icmp_test_message()[..4]).unwrap();
+        let msg = IcmpMessage::parse(&icmp_test_message()[..4]).unwrap();
         assert!(matches!(msg.body, IcmpBody::Echo(None)));
         assert!(msg.anomalies.contains(&IcmpAnomaly::BodyTruncated {
             expected: 8,
@@ -225,9 +218,14 @@ mod tests {
     fn unknown_type_yields_the_undecoded_remainder() {
         let mut raw_msg = icmp_test_message().to_vec();
         raw_msg[0] = 47; // not mapped
-        let (msg, payload) = IcmpMessage::parse(&raw_msg).unwrap();
+        let msg = IcmpMessage::parse(&raw_msg).unwrap();
         assert!(matches!(msg.type_, IcmpType::Unknown(47)));
-        assert!(matches!(msg.body, IcmpBody::Other));
-        assert_eq!(payload.len(), raw_msg.len() - 4); // the residual contract
+        // The same residual contract, with an address now: the raw
+        // body rides inside the variant.
+        let IcmpBody::Other(raw_body) = msg.body else {
+            panic!("expected the raw body");
+        };
+        assert_eq!(raw_body.len(), raw_msg.len() - 4);
+        assert_eq!(raw_body, &raw_msg[4..]);
     }
 }
