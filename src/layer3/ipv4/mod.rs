@@ -17,8 +17,6 @@
 //!
 //! - [RFC 791 – Internet Protocol](https://www.rfc-editor.org/rfc/rfc791)
 
-use crate::layer3::ipv4::{errors::Ipv4Error, packet::Ipv4Header};
-
 pub mod anomalies;
 pub mod display;
 pub mod dscp_ecn;
@@ -26,24 +24,3 @@ pub mod errors;
 pub mod flags;
 pub mod packet;
 pub mod protocol;
-
-/// Dissects and prints an IPv4 header.
-///
-/// Convenience wrapper around [`Ipv4Header::parse`]: everything it
-/// returns — decoded header (anomalies included) plus payload — is
-/// handed back for further inspection.
-///
-/// # Errors
-///
-/// Propagates any [`Ipv4Error`] from [`Ipv4Header::parse`].
-pub fn dissect(buf: &[u8]) -> Result<(Ipv4Header, &[u8]), Ipv4Error> {
-    let (data_header, payload) = Ipv4Header::parse(buf)?;
-
-    println!(
-        "Internet Protocol Version 4, Src: {}, Dst: {}",
-        data_header.source_address, data_header.destination_address
-    );
-    println!("{}", data_header);
-
-    Ok((data_header, payload))
-}

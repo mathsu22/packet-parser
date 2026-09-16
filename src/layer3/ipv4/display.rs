@@ -14,6 +14,12 @@ use crate::{
 
 impl fmt::Display for Ipv4Header {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(
+            f,
+            "Internet Protocol Version 4, Src: {}, Dst: {}",
+            self.source_address, self.destination_address
+        )?;
+
         writeln!(f, "Version: {}", self.version)?;
 
         writeln!(f, "Header Length: {} bytes ({})", self.ihl * 4, self.ihl)?;

@@ -144,6 +144,11 @@ impl EthernetHeader {
 
 impl fmt::Display for EthernetHeader {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(
+            f,
+            "Ethernet II, Src: ({}), Dst: ({})",
+            self.src_mac, self.dst_mac
+        )?;
         writeln!(f, "Destination: ({})", self.dst_mac)?;
         writeln!(f, "Source: ({})", self.src_mac)?;
         writeln!(

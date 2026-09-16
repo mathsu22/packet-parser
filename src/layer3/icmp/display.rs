@@ -5,6 +5,8 @@ use std::fmt;
 
 impl<'a> fmt::Display for IcmpMessage<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "Internet Control Message Protocol")?;
+
         writeln!(f, "Type: {} ({})", self.type_, self.type_.value())?;
 
         writeln!(f, "Code: {}", self.code)?;

@@ -8,7 +8,11 @@
 
 #![warn(missing_docs)]
 
-use crate::{layer2::ethernet::EtherType, layer3::ipv4::protocol::IpProtocol};
+use crate::{
+    layer2::ethernet::{EtherType, EthernetHeader},
+    layer3::icmp::message::IcmpMessage,
+    layer3::ipv4::{packet::Ipv4Header, protocol::IpProtocol},
+};
 
 pub mod checksum;
 pub mod errors;
@@ -43,8 +47,8 @@ const PACKET_TEST: &[u8] = &[
     0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
 ];
 
-/// Dissects a hard-coded Ethernet + IPv4 + ICMP echo-request frame and prints
-/// a Wireshark-style breakdown of each dissected layer.
+/// Dissects a hard-coded Ethernet + IPv4 + ICMP echo-request frame,
+/// printing each decoded layer via its Display.
 ///
 /// # Errors
 ///
@@ -52,13 +56,21 @@ const PACKET_TEST: &[u8] = &[
 /// sample frame is hard-coded, failure indicates a bug in the parser.
 pub fn run() -> Result<(), errors::AppError> {
     print_packet();
-    let (eth, eth_payload) = layer2::dissect(PACKET_TEST)?;
+    let (eth, eth_payload) = EthernetHeader::parse(PACKET_TEST)?;
+    print!("{}", eth);
+    println!();
+
     match eth.ethertype {
         EtherType::Ipv4 => {
-            let (ip_header, ipv4_payload) = layer3::ipv4::dissect(eth_payload)?;
+            let (ip_header, ipv4_payload) = Ipv4Header::parse(eth_payload)?;
+            println!("{}", ip_header);
+            println!();
+
             match ip_header.protocol {
                 IpProtocol::Icmp => {
-                    let (_icmp_message, _icmp_payload) = layer3::icmp::dissect(ipv4_payload)?;
+                    let (message, _) = IcmpMessage::parse(ipv4_payload)?;
+                    println!("{}", message);
+                    println!();
                 }
                 other => println!("{}: not dissected yet", other),
             }

@@ -11,28 +11,7 @@
 //!
 //! - [RFC 792 – Internet Control Message Protocol](https://www.rfc-editor.org/rfc/rfc792)
 
-use crate::layer3::icmp::message::{IcmpError, IcmpMessage};
-
 pub mod anomalies;
 pub mod display;
 pub mod message;
 pub mod types;
-
-/// Dissects and prints an ICMP message.
-///
-/// Convenience wrapper around [`IcmpMessage::parse`]: everything it
-/// returns — decoded message (data and anomalies included) — is
-/// handed back for further inspection.
-///
-/// # Errors
-///
-/// Propagates any [`IcmpError`] from [`IcmpMessage::parse`].
-pub fn dissect(buf: &[u8]) -> Result<(IcmpMessage<'_>, &[u8]), IcmpError> {
-    let (message, payload) = IcmpMessage::parse(buf)?;
-
-    println!("Internet Control Message Protocol");
-
-    println!("{}", message);
-
-    Ok((message, payload))
-}
