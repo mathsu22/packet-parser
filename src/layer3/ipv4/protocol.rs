@@ -32,6 +32,7 @@ impl From<u8> for IpProtocol {
 
 impl IpProtocol {
     /// Returns the protocol number for this variant.
+    #[must_use]
     pub fn value(self) -> u8 {
         match self {
             Self::Icmp => 1,

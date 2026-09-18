@@ -46,6 +46,7 @@ pub enum HeaderField {
 
 impl Ipv4Anomaly {
     /// Returns the header field this anomaly refers to.
+    #[must_use]
     pub fn field(&self) -> HeaderField {
         match self {
             Self::InvalidIhl(_) | Self::HeaderLongerThanCapture { .. } => HeaderField::HeaderLength,

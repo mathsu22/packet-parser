@@ -54,7 +54,7 @@ const PACKET_TEST: &[u8] = &[
 pub fn run() -> Result<(), errors::AppError> {
     print_packet();
     let frame = Frame::parse(PACKET_TEST)?;
-    print!("{}", frame);
+    print!("{frame}");
     Ok(())
 }
 
@@ -67,7 +67,7 @@ fn print_packet() {
     for (i, chunk) in PACKET_TEST.chunks(16).enumerate() {
         print!("{:04x}  ", i * 16);
         for (j, b) in chunk.iter().enumerate() {
-            print!("{:02x} ", b);
+            print!("{b:02x} ");
             if j == 7 {
                 print!(" ");
             }

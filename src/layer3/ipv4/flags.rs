@@ -18,6 +18,7 @@ pub struct IpFlags {
 }
 impl IpFlags {
     /// Parses the 3-bit flags field into individual boolean flags.
+    #[must_use]
     pub fn parse(flags_value: u8) -> Self {
         Self {
             reserved: flags_value & 0b100 != 0,
@@ -28,11 +29,13 @@ impl IpFlags {
 
     /// Reconstructs the packed 3-bit representation (reserved | DF | MF)
     /// for hex/debug display
+    #[must_use]
     pub fn as_byte(&self) -> u8 {
         (self.reserved as u8) << 2 | (self.dont_fragment as u8) << 1 | (self.more_fragments as u8)
     }
 
     /// A set reserved bit doesn't make the packet invalid; it's just an anomaly worth flagging.
+    #[must_use]
     pub fn is_anomalous(&self) -> bool {
         self.reserved
     }

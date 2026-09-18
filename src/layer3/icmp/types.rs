@@ -31,6 +31,7 @@ impl From<u8> for IcmpType {
 
 impl IcmpType {
     /// Returns the raw 8-bit type value.
+    #[must_use]
     pub fn value(self) -> u8 {
         match self {
             Self::EchoReply => 0,

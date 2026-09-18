@@ -15,6 +15,7 @@
 use std::fmt;
 
 /// Computes the Internet checksum over the given buffer.
+#[must_use]
 pub fn checksum(buf: &[u8]) -> u16 {
     let mut sum: u32 = 0;
 

@@ -99,11 +99,11 @@ impl fmt::Display for EthernetPayload<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Ipv4 { header, payload } => {
-                write!(f, "{}", header)?;
+                write!(f, "{header}")?;
                 writeln!(f)?;
-                write!(f, "{}", payload)
+                write!(f, "{payload}")
             }
-            Self::Unsupported(ethertype) => write!(f, "{}: not dissected yet", ethertype),
+            Self::Unsupported(ethertype) => write!(f, "{ethertype}: not dissected yet"),
         }
     }
 }
@@ -111,8 +111,8 @@ impl fmt::Display for EthernetPayload<'_> {
 impl fmt::Display for Ipv4Payload<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Icmp(message) => write!(f, "{}", message),
-            Self::Unsupported(protocol) => write!(f, "{}: not dissected yet", protocol),
+            Self::Icmp(message) => write!(f, "{message}"),
+            Self::Unsupported(protocol) => write!(f, "{protocol}: not dissected yet"),
         }
     }
 }

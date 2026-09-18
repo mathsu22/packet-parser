@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+#
+# pre-commit — keep the Rust crate doc- and clippy-clean.
+
+set -euo pipefail
+
+MANIFEST="$(git rev-parse --show-toplevel)/Cargo.toml"
+
+say() {
+  printf '\033[1;36m▶ %s\033[0m\n' "$1"
+}
+
+fail() {
+  printf '\033[1;31m✖ %s\033[0m\n' "$1" >&2
+  exit 1
+}
+
+say "pre-commit: cargo doc (missing_docs + broken doc links treated as errors)"
+RUSTDOCFLAGS="-D warnings" cargo doc --manifest-path "$MANIFEST" --no-deps \
+  || fail "Broken or incomplete docs. Run: cargo doc --manifest-path $MANIFEST --open"
+
+say "pre-commit: tests"
+cargo nextest run --manifest-path "$MANIFEST" \
+  || fail "Tests failed. Fix the failures, or skip once with: git commit --no-verify"
+
+say "pre-commit: clippy"
+cargo clippy --manifest-path "$MANIFEST" --all-targets -- -D warnings \
+  || fail "Clippy found issues. Fix them, or skip once with: git commit --no-verify"
+

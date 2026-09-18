@@ -72,6 +72,7 @@ impl From<u16> for EtherType {
 
 impl EtherType {
     /// Returns the raw 16-bit EtherType value for this variant.
+    #[must_use]
     pub fn value(self) -> u16 {
         match self {
             Self::Ipv4 => 0x0800,

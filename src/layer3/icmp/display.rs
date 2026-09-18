@@ -67,7 +67,7 @@ impl<'a> IcmpMessage<'a> {
         for (i, chunk) in data.chunks(16).enumerate() {
             write!(f, "{:04x}  ", i * 16)?;
             for b in chunk {
-                write!(f, "{:02x} ", b)?;
+                write!(f, "{b:02x} ")?;
             }
             writeln!(f)?;
         }
