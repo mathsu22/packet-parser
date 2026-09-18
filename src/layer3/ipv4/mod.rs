@@ -7,7 +7,7 @@
 //! - [`anomalies`] — [`Ipv4Anomaly`](crate::layer3::ipv4::anomalies::Ipv4Anomaly): non-fatal protocol anomalies detected during parsing
 //! - [`protocol`] — [`IpProtocol`](crate::layer3::ipv4::protocol::IpProtocol): the Protocol field as an enum
 //! - [`flags`] — [`IpFlags`](crate::layer3::ipv4::flags::IpFlags): the 3-bit Flags field from the IPv4 header, decoded into named booleans
-//! - [`display`] — Wireshark-style formatting for [`Ipv4Header`]
+//! - [`display`] — Wireshark-style formatting for [`Ipv4Header`](crate::layer3::ipv4::packet::Ipv4Header)
 //! - [`dscp_ecn`] — helpers for interpreting DSCP and ECN values
 //!
 //! Checksum computation ([`crate::checksum`]) lives at the crate root,

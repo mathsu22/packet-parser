@@ -1,4 +1,4 @@
-//! The top-level error type this crate returns from [`crate::run`],
+//! The top-level error type returned by [`frame::Frame::parse`],
 //! aggregating every layer's error into one enum.
 
 use thiserror::Error;

@@ -8,14 +8,11 @@
 
 #![warn(missing_docs)]
 
-use crate::{
-    layer2::ethernet::{EtherType, EthernetHeader},
-    layer3::icmp::message::IcmpMessage,
-    layer3::ipv4::{packet::Ipv4Header, protocol::IpProtocol},
-};
+use crate::frame::Frame;
 
 pub mod checksum;
 pub mod errors;
+pub mod frame;
 pub mod layer2;
 pub mod layer3;
 
@@ -56,28 +53,8 @@ const PACKET_TEST: &[u8] = &[
 /// sample frame is hard-coded, failure indicates a bug in the parser.
 pub fn run() -> Result<(), errors::AppError> {
     print_packet();
-    let (eth, eth_payload) = EthernetHeader::parse(PACKET_TEST)?;
-    print!("{}", eth);
-    println!();
-
-    match eth.ethertype {
-        EtherType::Ipv4 => {
-            let (ip_header, ipv4_payload) = Ipv4Header::parse(eth_payload)?;
-            print!("{}", ip_header);
-            println!();
-
-            match ip_header.protocol {
-                IpProtocol::Icmp => {
-                    let message = IcmpMessage::parse(ipv4_payload)?;
-                    print!("{}", message);
-                    println!();
-                }
-                other => println!("{}: not dissected yet", other),
-            }
-        }
-        other => println!("{}: not dissected yet", other),
-    }
-
+    let frame = Frame::parse(PACKET_TEST)?;
+    print!("{}", frame);
     Ok(())
 }
 
