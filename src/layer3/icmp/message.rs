@@ -75,21 +75,34 @@ pub struct IcmpMessage<'a> {
 impl<'a> IcmpMessage<'a> {
     /// Parses an ICMP message from `buf`.
     ///
-    /// Returns the decoded message. Echo bodies carry their data inside
-    /// [`IcmpEcho::data`]; unmapped types carry their raw body inside
-    /// [`IcmpBody::Other`]; the whole message is accounted for, nothing
-    /// is handed further down.
+    /// `message_length` is the length the parent datagram declares for this
+    /// message — ICMP has no length field of its own (RFC 792), so the
+    /// parent's `payload_length` is the only place it can come from. It
+    /// bounds every extended read: the checksum runs over exactly the
+    /// declared bytes (Ethernet padding never enters the sum, and a capture
+    /// that falls short is [`ChecksumStatus::NotVerifiable`]), body data
+    /// ends at the declared edge, and truncation reports the bytes actually
+    /// available. `buf` may hold more (padding) or fewer (truncated
+    /// capture) bytes than the message was declared to have — every bounded
+    /// read takes the lesser of the two.
+    ///
+    /// Returns the decoded message. Every byte of the message meets one of
+    /// three fates: decoded into a field, carried raw ([`IcmpEcho::data`]
+    /// for Echo messages, [`IcmpBody::Other`] for unmapped types), or
+    /// dropped — when a truncated body cuts a field in half, the half-field
+    /// carries no value, only its byte count is recorded as an
+    /// [`IcmpAnomaly`]. Nothing is handed further down.
     ///
     /// Dissector semantics: only a buffer too short for the common 4-byte
     /// header fails (see [`IcmpError`]). When the Type demands a body that
-    /// doesn't fit in the capture, the message still dissects and an
-    /// [`IcmpAnomaly`] is recorded.
+    /// the capture or the declared length cannot fill, the message still
+    /// dissects and an [`IcmpAnomaly`] is recorded.
     ///
     /// # Errors
     ///
     /// Returns an [`IcmpError`] if the buffer is shorter than the fixed
     /// 4-byte common header.
-    pub fn parse(buf: &'a [u8]) -> Result<Self, IcmpError> {
+    pub fn parse(buf: &'a [u8], message_length: usize) -> Result<Self, IcmpError> {
         if buf.len() < MIN_HEADER_LENGTH {
             return Err(IcmpError::BufferTooShortForHeader {
                 expected: MIN_HEADER_LENGTH,
@@ -101,7 +114,11 @@ impl<'a> IcmpMessage<'a> {
         let code = buf[1];
         let checksum_ = u16::from_be_bytes([buf[2], buf[3]]);
 
-        let checksum_status = if checksum(buf) == 0 {
+        let available = buf.len().min(message_length);
+
+        let checksum_status = if message_length < MIN_HEADER_LENGTH || buf.len() < message_length {
+            ChecksumStatus::NotVerifiable
+        } else if checksum(&buf[..message_length]) == 0 {
             ChecksumStatus::Good
         } else {
             ChecksumStatus::Bad
@@ -111,21 +128,23 @@ impl<'a> IcmpMessage<'a> {
 
         let body = match type_ {
             IcmpType::EchoReply | IcmpType::EchoRequest => {
-                if buf.len() >= ECHO_HEADER_LENGTH {
+                if available >= ECHO_HEADER_LENGTH {
                     IcmpBody::Echo(Some(IcmpEcho {
                         identifier: u16::from_be_bytes([buf[4], buf[5]]),
                         sequence_number: u16::from_be_bytes([buf[6], buf[7]]),
-                        data: &buf[ECHO_HEADER_LENGTH..],
+                        data: &buf[ECHO_HEADER_LENGTH..available],
                     }))
                 } else {
                     anomalies.push(IcmpAnomaly::BodyTruncated {
                         expected: ECHO_HEADER_LENGTH,
-                        got: buf.len(),
+                        got: available,
                     });
                     IcmpBody::Echo(None)
                 }
             }
-            _ => IcmpBody::Other(&buf[MIN_HEADER_LENGTH..]),
+            IcmpType::Unknown(_) => {
+                IcmpBody::Other(&buf[MIN_HEADER_LENGTH..available.max(MIN_HEADER_LENGTH)])
+            }
         };
 
         Ok(Self {
@@ -144,14 +163,18 @@ mod tests {
     use super::*;
     use crate::PACKET_TEST;
 
-    /// The ICMP message inside PACKET_TEST (Ethernet 14 + IPv4 20).
+    // The message length the IPv4 datagram declares for the ICMP message
+    // inside PACKET_TEST: Total Length (84) − IPv4 header (20).
+    const ICMP_MESSAGE_LENGTH: usize = 64;
+
+    // The ICMP message inside PACKET_TEST (Ethernet 14 + IPv4 20).
     fn icmp_test_message() -> &'static [u8] {
         &PACKET_TEST[34..]
     }
 
     #[test]
     fn parses_the_sample_echo_request() {
-        let msg = IcmpMessage::parse(icmp_test_message()).unwrap();
+        let msg = IcmpMessage::parse(icmp_test_message(), ICMP_MESSAGE_LENGTH).unwrap();
         assert_eq!(msg.type_, IcmpType::EchoRequest);
         assert_eq!(msg.code, 0);
         assert_eq!(msg.checksum_, 0x0ee4);
@@ -166,35 +189,40 @@ mod tests {
         assert!(msg.anomalies.is_empty());
     }
 
-    // A capture truncated to 7 of the 8 bytes the echo body needs:
-    // the common header reads fine, but Identifier + Sequence don't fit.
+    // The capture contains only 7 of the 8 bytes required by the Echo body:
+    // the common header is complete, but Identifier + Sequence Number are truncated.
     #[test]
     fn records_body_truncation_instead_of_failing() {
-        let msg = IcmpMessage::parse(&icmp_test_message()[..7]).unwrap();
+        let msg = IcmpMessage::parse(&icmp_test_message()[..7], ICMP_MESSAGE_LENGTH).unwrap();
         assert!(matches!(msg.body, IcmpBody::Echo(None)));
         assert!(msg.anomalies.contains(&IcmpAnomaly::BodyTruncated {
             expected: 8,
             got: 7,
         }));
-        assert_eq!(msg.checksum_status, ChecksumStatus::Bad); // data is missing
+        // Only 7 of the 64 declared bytes were captured, so a partial checksum
+        // cannot be verified.
+        assert_eq!(msg.checksum_status, ChecksumStatus::NotVerifiable);
     }
 
-    // Boundary: exactly 8 bytes is a legal RFC 792 message — complete
-    // body, empty data. NOT truncated.
+    // Boundary: exactly 8 bytes is a valid RFC 792 Echo message — a complete
+    // body with no data. It is NOT truncated. Checksum verification still fails:
+    // body completeness and checksum verifiability are independent.
     #[test]
     fn echo_with_no_data_is_a_complete_body() {
-        let msg = IcmpMessage::parse(&icmp_test_message()[..8]).unwrap();
+        let msg = IcmpMessage::parse(&icmp_test_message()[..8], ICMP_MESSAGE_LENGTH).unwrap();
         let IcmpBody::Echo(Some(echo)) = msg.body else {
             panic!("expected a complete echo body");
         };
         assert!(echo.data.is_empty());
         assert!(msg.anomalies.is_empty());
+        assert_eq!(msg.checksum_status, ChecksumStatus::NotVerifiable);
     }
 
-    // Just above the fatal floor: common header present, body absent.
+    // Boundary: exactly 4 bytes is enough for the common ICMP header,
+    // but not enough for the Echo body.
     #[test]
     fn four_bytes_dissect_with_truncated_body() {
-        let msg = IcmpMessage::parse(&icmp_test_message()[..4]).unwrap();
+        let msg = IcmpMessage::parse(&icmp_test_message()[..4], ICMP_MESSAGE_LENGTH).unwrap();
         assert!(matches!(msg.body, IcmpBody::Echo(None)));
         assert!(msg.anomalies.contains(&IcmpAnomaly::BodyTruncated {
             expected: 8,
@@ -204,7 +232,7 @@ mod tests {
 
     #[test]
     fn rejects_buffer_below_minimum() {
-        let err = IcmpMessage::parse(&icmp_test_message()[..3]).unwrap_err();
+        let err = IcmpMessage::parse(&icmp_test_message()[..3], ICMP_MESSAGE_LENGTH).unwrap_err();
         assert!(matches!(
             err,
             IcmpError::BufferTooShortForHeader {
@@ -218,14 +246,58 @@ mod tests {
     fn unknown_type_yields_the_undecoded_remainder() {
         let mut raw_msg = icmp_test_message().to_vec();
         raw_msg[0] = 47; // not mapped
-        let msg = IcmpMessage::parse(&raw_msg).unwrap();
+        let msg = IcmpMessage::parse(&raw_msg, ICMP_MESSAGE_LENGTH).unwrap();
         assert!(matches!(msg.type_, IcmpType::Unknown(47)));
-        // The same residual contract, with an address now: the raw
-        // body rides inside the variant.
+        // Unknown types are preserved without interpretation: the bytes after
+        // the common 4-byte header are returned unchanged as the raw body.
         let IcmpBody::Other(raw_body) = msg.body else {
             panic!("expected the raw body");
         };
         assert_eq!(raw_body.len(), raw_msg.len() - 4);
         assert_eq!(raw_body, &raw_msg[4..]);
+    }
+
+    // Ethernet padding extends the capture beyond the declared datagram:
+    // those 6 bytes must be excluded from both `data` and the checksum window.
+    #[test]
+    fn padding_beyond_the_datagram_stays_out_of_the_data() {
+        let mut padded = icmp_test_message().to_vec();
+        padded.extend_from_slice(&[0xAA; 6]); // fake Ethernet padding
+        let msg = IcmpMessage::parse(&padded, ICMP_MESSAGE_LENGTH).unwrap();
+        let IcmpBody::Echo(Some(echo)) = msg.body else {
+            panic!("expected a complete echo body");
+        };
+        assert_eq!(echo.data.len(), 56); // 64 − 8, padding excluded
+        assert_eq!(msg.checksum_status, ChecksumStatus::Good);
+    }
+
+    // The parent datagram declares fewer bytes than the 4-byte ICMP common header:
+    // the body is truncated, parsing does not panic, and the checksum is not verifiable.
+    #[test]
+    fn parent_declaring_less_than_the_common_header_does_not_panic() {
+        let msg = IcmpMessage::parse(icmp_test_message(), 2).unwrap();
+        assert!(matches!(msg.body, IcmpBody::Echo(None)));
+        assert!(msg.anomalies.contains(&IcmpAnomaly::BodyTruncated {
+            expected: 8,
+            got: 2,
+        }));
+        assert_eq!(msg.checksum_status, ChecksumStatus::NotVerifiable);
+    }
+
+    // The `Other` arm slices `&buf[4..available]`. With a declared length
+    // below the 4-byte common header, `available` would be smaller than 4,
+    // making the range invalid. The `max(4)` guard keeps the range empty
+    // instead of attempting a backwards slice.
+    #[test]
+    fn unmapped_type_with_tiny_declaration_does_not_panic() {
+        let mut raw = icmp_test_message().to_vec();
+        raw[0] = 47; // unmapped, reaches the Other arm
+        let msg = IcmpMessage::parse(&raw, 2).unwrap();
+
+        let IcmpBody::Other(raw_body) = msg.body else {
+            panic!("expected the raw body");
+        };
+        assert!(raw_body.is_empty()); // the guard: nothing to locate
+        assert_eq!(msg.checksum_status, ChecksumStatus::NotVerifiable);
     }
 }

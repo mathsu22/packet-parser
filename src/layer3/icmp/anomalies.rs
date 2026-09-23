@@ -13,7 +13,7 @@ pub enum IcmpAnomaly {
     BodyTruncated {
         /// Minimum message size the Type demands (common header + body).
         expected: usize,
-        /// Bytes of the message actually captured.
+        /// Bytes of the message actually available.
         got: usize,
     },
 }
@@ -24,7 +24,7 @@ impl fmt::Display for IcmpAnomaly {
             Self::BodyTruncated { expected, got } => {
                 write!(
                     f,
-                    "Malformed Packet (Exception occurred): {expected} bytes needed, {got} captured"
+                    "Malformed Packet (Exception occurred): {expected} bytes needed, {got} available"
                 )
             }
         }

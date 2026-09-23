@@ -50,7 +50,10 @@ pub struct Ipv4Header {
     pub source_address: Ipv4Addr,
     /// Destination IPv4 address.
     pub destination_address: Ipv4Addr,
-    /// Whether the header checksum verified during `parse`.
+    /// IPv4 header length in bytes, derived from `IHL × 4` and clamped to
+    /// the number of captured bytes if the declared header is truncated.
+    pub header_length: usize,
+    /// Status of the IPv4 header checksum verification performed during `parse`.
     pub checksum_status: ChecksumStatus,
     /// Protocol-level anomalies detected during parsing.
     pub anomalies: Vec<Ipv4Anomaly>,
@@ -135,7 +138,6 @@ impl Ipv4Header {
         let mut header_length = (ihl as usize) * 4;
         if ihl < MIN_IHL_VALUE {
             anomalies.push(Ipv4Anomaly::InvalidIhl(ihl));
-            header_length = MIN_HEADER_LENGTH;
         }
         let declared_header_length = header_length;
 
@@ -206,9 +208,9 @@ impl Ipv4Header {
         //  BYTES 16..=19 — destination IP
         let destination_address = Ipv4Addr::new(buf[16], buf[17], buf[18], buf[19]);
 
-        // The checksum is only verifiable when the complete declared header
-        // is present in the captured buffer.
-        let checksum_status = if buf_length < declared_header_length {
+        // The checksum is verifiable only when the IHL is sane and the
+        // complete declared header is present in the captured buffer.
+        let checksum_status = if ihl < MIN_IHL_VALUE || buf_length < declared_header_length {
             ChecksumStatus::NotVerifiable
         } else if checksum(&buf[..header_length]) == 0 {
             ChecksumStatus::Good
@@ -234,11 +236,45 @@ impl Ipv4Header {
                 header_checksum,
                 source_address,
                 destination_address,
+                header_length,
                 checksum_status,
                 anomalies,
             },
             payload,
         ))
+    }
+    /// Returns the declared IPv4 payload length in bytes
+    /// (`Total Length − IHL × 4`), saturating at zero.
+    ///
+    /// This is the *declared* length — it assumes the header ends exactly
+    /// where the IHL says it does. If the header was truncated or invalid,
+    /// that assumption breaks, so only trust this value after both gates
+    /// pass:
+    ///
+    /// ```ignore
+    /// if header.locates_payload() && header.header_fits_capture() {
+    ///     let len = header.payload_length(); // safe to use
+    /// }
+    /// ```
+    #[must_use]
+    pub fn payload_length(&self) -> usize {
+        (self.total_length as usize).saturating_sub(self.ihl as usize * 4)
+    }
+
+    /// Returns whether the IPv4 header fields define a valid location for
+    /// the payload — the datagram does not contradict itself (IHL ≥ 5 and
+    /// the header does not exceed Total Length).
+    #[must_use]
+    pub fn locates_payload(&self) -> bool {
+        self.ihl >= MIN_IHL_VALUE && (self.ihl as usize * 4) <= self.total_length as usize
+    }
+
+    /// Returns whether the capture holds every byte of the header the IHL
+    /// **declares** (the clamp did not fire). Says nothing about whether
+    /// the declaration is sane — that is [`Self::locates_payload`]'s job.
+    #[must_use]
+    pub fn header_fits_capture(&self) -> bool {
+        self.header_length == (self.ihl as usize) * 4
     }
 }
 
@@ -253,7 +289,6 @@ mod tests {
     }
 
     // happy path
-
     // Ground truth: this packet was captured for real and checked
     #[test]
     fn parses_the_sample_packet() {
@@ -277,6 +312,10 @@ mod tests {
         assert_eq!(h.source_address, Ipv4Addr::new(192, 168, 1, 104));
         assert_eq!(h.destination_address, Ipv4Addr::new(8, 8, 8, 8));
         assert_eq!(h.checksum_status, ChecksumStatus::Good);
+        assert_eq!(h.header_length, 20);
+        assert_eq!(h.payload_length(), 64); // total 84 − header 20
+        assert!(h.locates_payload());
+        assert!(h.header_fits_capture());
         assert!(h.anomalies.is_empty());
     }
 
@@ -308,19 +347,25 @@ mod tests {
     #[test]
     fn anomaly_invalid_ihl_below_minimum() {
         // IHL 4 (16-byte header) is below the RFC minimum of 5 (20 bytes).
-        // The parser doesn't abort: it clamps to the minimum and flags the anomaly.
+        // The parser records the lie and stops trusting anything that
+        // depends on the header's extent: the checksum's coverage is as
+        // indeterminable as the payload's position.
         let mut pkt = ipv4_test_packet().to_vec();
         pkt[0] = 0x44; // version 4, IHL 4
         let (h, _payload) = Ipv4Header::parse(&pkt).unwrap();
         assert!(h.anomalies.contains(&Ipv4Anomaly::InvalidIhl(4)));
+        assert_eq!(h.header_length, 16); // declared, NOT clamped to 20 — the clamp is gone
+        assert!(!h.locates_payload());
+        assert_eq!(h.checksum_status, ChecksumStatus::NotVerifiable);
     }
 
     #[test]
     fn anomaly_header_longer_than_capture() {
         // IHL 6 declares a 24-byte header, but only 20 bytes were captured.
-        // Both the header-vs-capture and total-length-vs-capture checks fire,
-        // and the checksum can't be verified since the declared header is
-        // longer than what's actually available.
+        // The packet's declared header is therefore longer than the capture,
+        // and the declared Total Length also exceeds the captured bytes.
+        // The header is internally consistent, but the capture is truncated,
+        // so the checksum cannot be verified.
         let mut pkt = ipv4_test_packet().to_vec();
         pkt[0] = 0x46; // version 4, IHL 6
         let (h, _payload) = Ipv4Header::parse(&pkt[..20]).unwrap();
@@ -332,17 +377,23 @@ mod tests {
             h.anomalies
                 .contains(&Ipv4Anomaly::TotalLengthExceedsCapture { captured: 20 })
         );
+        assert_eq!(h.header_length, 20); // clamped to the captured bytes
+        assert!(h.locates_payload()); // the packet is internally consistent...
+        assert!(!h.header_fits_capture()); // ...but the capture is truncated
         assert_eq!(h.checksum_status, ChecksumStatus::NotVerifiable);
     }
 
     #[test]
     fn anomaly_header_exceeding_total_length() {
-        // total_length = 19 is smaller than the 20-byte header itself —
-        // logically impossible for a real datagram.
+        // Total Length = 19 is smaller than the 20-byte header itself,
+        // so the datagram is internally inconsistent. The parser records
+        // the contradiction instead of failing.
         let mut pkt = ipv4_test_packet().to_vec();
         pkt[3] = 0x13; // total_length = 19
         let (h, _payload) = Ipv4Header::parse(&pkt).unwrap();
         assert_eq!(h.total_length, 19);
+        assert_eq!(h.payload_length(), 0); // saturating: 19 − 20 must not underflow
+        assert!(!h.locates_payload());
         assert!(
             h.anomalies
                 .contains(&Ipv4Anomaly::HeaderExceedsTotalLength {
@@ -362,6 +413,8 @@ mod tests {
             h.anomalies
                 .contains(&Ipv4Anomaly::TotalLengthExceedsCapture { captured: 83 })
         );
+        assert!(h.locates_payload());
+        assert!(h.header_fits_capture()); // header intact — only the payload is short
         assert_eq!(h.checksum_status, ChecksumStatus::Good);
     }
 
@@ -423,5 +476,62 @@ mod tests {
         let (h, _payload) = Ipv4Header::parse(&padded).unwrap();
         assert!(h.anomalies.is_empty());
         assert_eq!(h.checksum_status, ChecksumStatus::Good);
+    }
+
+    #[test]
+    fn unlocatable_means_a_structural_anomaly() {
+        // locates_payload() is false exactly when one of the two structural
+        // anomalies fired, if either side drifts, this test catches it.
+        for b0 in [0x45, 0x44, 0x46, 0x40, 0x4f] {
+            for total in [0u16, 1, 19, 20, 21, 84] {
+                let mut pkt = ipv4_test_packet().to_vec();
+                pkt[0] = b0;
+                pkt[2] = (total >> 8) as u8;
+                pkt[3] = total as u8;
+                let Ok((h, _)) = Ipv4Header::parse(&pkt) else {
+                    continue;
+                };
+
+                let structural = h.anomalies.iter().any(|a| {
+                    matches!(
+                        a,
+                        Ipv4Anomaly::InvalidIhl(_) | Ipv4Anomaly::HeaderExceedsTotalLength { .. }
+                    )
+                });
+                assert_eq!(
+                    h.locates_payload(),
+                    !structural,
+                    "b0={b0:#04x}, total={total}"
+                );
+            }
+        }
+    }
+
+    // header_fits_capture() is false exactly when HeaderLongerThanCapture
+    // fired: the read clamp and the anomaly are one fact in two places. If
+    // either side drifts, this catches it. Bogus IHL is included on purpose:
+    // the two gates ask independent questions.
+    #[test]
+    fn clamped_header_means_capture_anomaly() {
+        for (b0, cap) in [
+            (0x45, 84),
+            (0x45, 20),
+            (0x44, 84),
+            (0x46, 23),
+            (0x46, 24),
+            (0x4f, 40),
+        ] {
+            let mut pkt = ipv4_test_packet().to_vec();
+            pkt[0] = b0;
+            let Ok((h, _)) = Ipv4Header::parse(&pkt[..cap]) else {
+                continue;
+            };
+
+            let clamped = h
+                .anomalies
+                .iter()
+                .any(|a| matches!(a, Ipv4Anomaly::HeaderLongerThanCapture { .. }));
+            assert_eq!(h.header_fits_capture(), !clamped, "b0={b0:#04x}, cap={cap}");
+        }
     }
 }

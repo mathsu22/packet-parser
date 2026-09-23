@@ -49,8 +49,9 @@ const PACKET_TEST: &[u8] = &[
 ///
 /// # Errors
 ///
-/// Returns an [`errors::AppError`] if parsing fails at any layer. Because the
-/// sample frame is hard-coded, failure indicates a bug in the parser.
+/// Returns an [`errors::AppError`] if parsing fails at the Ethernet or IPv4
+/// layer. Because the sample frame is hard-coded, failure indicates a bug in
+/// the parser.
 pub fn run() -> Result<(), errors::AppError> {
     print_packet();
     let frame = Frame::parse(PACKET_TEST)?;
