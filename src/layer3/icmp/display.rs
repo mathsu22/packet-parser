@@ -2,7 +2,8 @@
 
 use crate::{
     checksum::ChecksumStatus,
-    layer3::icmp::message::{IcmpBody, IcmpMessage},
+    hexdump::Hexdump,
+    layer3::icmp::{IcmpBody, IcmpMessage},
 };
 use std::fmt;
 
@@ -62,15 +63,7 @@ impl<'a> IcmpMessage<'a> {
     }
 
     fn write_data(f: &mut fmt::Formatter<'_>, data: &[u8]) -> fmt::Result {
-        writeln!(f, "Data ({} bytes)\n", data.len())?;
-
-        for (i, chunk) in data.chunks(16).enumerate() {
-            write!(f, "{:04x}  ", i * 16)?;
-            for b in chunk {
-                write!(f, "{b:02x} ")?;
-            }
-            writeln!(f)?;
-        }
-        Ok(())
+        writeln!(f, "Data ({} bytes)", data.len())?;
+        write!(f, "{}", Hexdump(data))
     }
 }

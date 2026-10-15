@@ -7,3 +7,5 @@
 //! - [`ethernet`] — Ethernet II frame parsing.
 
 pub mod ethernet;
+
+pub use ethernet::{EtherType, EthernetError, EthernetHeader, MacAddress};

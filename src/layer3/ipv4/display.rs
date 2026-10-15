@@ -5,11 +5,7 @@ use std::fmt;
 
 use crate::{
     checksum::ChecksumStatus,
-    layer3::ipv4::{
-        anomalies::HeaderField,
-        dscp_ecn::{dscp_name, ecn_keyword},
-        packet::Ipv4Header,
-    },
+    layer3::ipv4::{HeaderField, Ipv4Header, dscp_name, ecn_keyword},
 };
 
 impl fmt::Display for Ipv4Header {

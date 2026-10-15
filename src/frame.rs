@@ -8,10 +8,10 @@
 
 use crate::{
     errors::AppError,
-    layer2::ethernet::{EtherType, EthernetHeader},
+    layer2::{EtherType, EthernetHeader},
     layer3::{
-        icmp::message::{IcmpError, IcmpMessage},
-        ipv4::{packet::Ipv4Header, protocol::IpProtocol},
+        icmp::{IcmpError, IcmpMessage},
+        ipv4::{IpProtocol, Ipv4Header},
     },
 };
 use std::fmt;
@@ -139,17 +139,16 @@ impl fmt::Display for Ipv4Payload<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::PACKET_TEST;
     use crate::checksum::ChecksumStatus;
-    use crate::layer3::icmp::message::IcmpBody;
-    use crate::layer3::icmp::types::IcmpType;
+    use crate::layer3::icmp::{IcmpBody, IcmpType};
+    use crate::samples::PING_REQUEST;
     use std::net::Ipv4Addr;
 
     // The happy path, end to end: one frame, three layers, the frame tree
     // carrying each decoded header down to the ICMP type.
     #[test]
     fn frame_tree_carries_the_dissection() {
-        let frame = Frame::parse(PACKET_TEST).unwrap();
+        let frame = Frame::parse(PING_REQUEST).unwrap();
 
         let EthernetPayload::Ipv4 { header, payload } = &frame.payload else {
             panic!("expected IPv4");
@@ -168,7 +167,7 @@ mod tests {
     // available), across all three vocabularies.
     #[test]
     fn padding_beyond_the_datagram_stays_out_of_the_data() {
-        let mut padded = PACKET_TEST.to_vec();
+        let mut padded = PING_REQUEST.to_vec();
         padded.extend_from_slice(&[0xAA; 6]); // fake Ethernet padding
         let frame = Frame::parse(&padded).unwrap();
         let EthernetPayload::Ipv4 { payload, .. } = &frame.payload else {
@@ -190,7 +189,7 @@ mod tests {
     // the header boundary.
     #[test]
     fn bogus_ihl_leaves_the_payload_unlocatable() {
-        let mut pkt = PACKET_TEST.to_vec();
+        let mut pkt = PING_REQUEST.to_vec();
         pkt[14] = 0x44; // IPv4 byte 0: version 4, IHL 4 (Ethernet = 14 bytes)
         let frame = Frame::parse(&pkt).unwrap();
         let EthernetPayload::Ipv4 { header, payload } = &frame.payload else {
@@ -206,7 +205,7 @@ mod tests {
     // offered downstream.
     #[test]
     fn datagram_smaller_than_its_header_leaves_the_payload_unlocatable() {
-        let mut pkt = PACKET_TEST.to_vec();
+        let mut pkt = PING_REQUEST.to_vec();
         pkt[17] = 0x13; // total_length = 19 (frame offsets 16..=17, big-endian)
         let frame = Frame::parse(&pkt).unwrap();
         let EthernetPayload::Ipv4 { payload, .. } = &frame.payload else {
@@ -220,7 +219,7 @@ mod tests {
     // NotCaptured is returned before any payload is offered downstream.
     #[test]
     fn truncated_header_reports_not_captured() {
-        let mut pkt = PACKET_TEST.to_vec();
+        let mut pkt = PING_REQUEST.to_vec();
         pkt[14] = 0x46; // version 4, IHL 6 → 24-byte declared header
         let frame = Frame::parse(&pkt[..34]).unwrap(); // Ethernet 14 + 20 of the 24
         let EthernetPayload::Ipv4 { payload, .. } = &frame.payload else {
@@ -234,7 +233,7 @@ mod tests {
     // first field, so the payload is reported as NotCaptured.
     #[test]
     fn capture_that_reaches_no_payload_bytes_reports_not_captured() {
-        let frame = Frame::parse(&PACKET_TEST[..34]).unwrap();
+        let frame = Frame::parse(&PING_REQUEST[..34]).unwrap();
         let EthernetPayload::Ipv4 { payload, .. } = &frame.payload else {
             panic!("expected IPv4");
         };
@@ -249,7 +248,7 @@ mod tests {
     // the mutation is the Bad IPv4 checksum.
     #[test]
     fn valid_ihl_with_options_still_descends() {
-        let mut pkt = PACKET_TEST.to_vec();
+        let mut pkt = PING_REQUEST.to_vec();
         pkt[14] = 0x46; // IPv4 byte 0: version 4, IHL 6 → 24-byte header
         let frame = Frame::parse(&pkt).unwrap();
 

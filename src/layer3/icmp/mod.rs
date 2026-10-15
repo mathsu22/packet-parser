@@ -2,10 +2,10 @@
 //!
 //! ## Module map
 //!
-//! - [`message`] — the [`IcmpMessage`](crate::layer3::icmp::message::IcmpMessage) struct and the parsing logic
-//! - [`anomalies`] — [`IcmpAnomaly`](crate::layer3::icmp::anomalies::IcmpAnomaly): non-fatal protocol anomalies detected during parsing
-//! - [`types`] — [`IcmpType`](crate::layer3::icmp::types::IcmpType): the Type byte as an enum
-//! - [`display`] — Wireshark-style formatting for [`IcmpMessage`](crate::layer3::icmp::message::IcmpMessage)
+//! - [`message`] — the [`IcmpMessage`] struct and the parsing logic
+//! - [`anomalies`] — [`IcmpAnomaly`]: non-fatal protocol anomalies detected during parsing
+//! - [`types`] — [`IcmpType`]: the Type byte as an enum
+//! - [`display`] — Wireshark-style formatting for [`IcmpMessage`]
 //!
 //! ## References
 //!
@@ -15,3 +15,7 @@ pub mod anomalies;
 pub mod display;
 pub mod message;
 pub mod types;
+
+pub use anomalies::IcmpAnomaly;
+pub use message::{IcmpBody, IcmpEcho, IcmpError, IcmpMessage};
+pub use types::IcmpType;

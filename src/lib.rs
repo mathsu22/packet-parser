@@ -8,72 +8,10 @@
 
 #![warn(missing_docs)]
 
-use crate::frame::Frame;
-
 pub mod checksum;
 pub mod errors;
 pub mod frame;
+pub mod hexdump;
 pub mod layer2;
 pub mod layer3;
-
-// ICMP echo request packet (ping):
-//    src 192.168.1.104 → dst 8.8.8.8
-//    proto = 1 (ICMP), TTL = 64 (Linux)
-const PACKET_TEST: &[u8] = &[
-    // Ethernet II
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, /* destination: broadcast */
-    0x00, 0x11, 0x22, 0x33, 0x44, 0x55, /* source: example MAC */
-    0x08, 0x00, /* EtherType: IPv4 */
-    // IPv4
-    0x45, /* ver/ihl */
-    0x00, /* dscp/ecn */
-    0x00, 0x54, /* total len */
-    0xc6, 0x4a, /* identification */
-    0x40, 0x00, /* flags/frag offset */
-    0x40, /* ttl */
-    0x01, /* protocol */
-    0xa2, 0x3e, /* checksum */
-    0xc0, 0xa8, 0x01, 0x68, /* source address */
-    0x08, 0x08, 0x08, 0x08, /* destination address */
-    // ICMP Header + Echo Payload (64 bytes)
-    0x08, 0x00, 0x0e, 0xe4, /* ICMP Type: Echo Request (8), Code: 0, Checksum */
-    0x1e, 0x08, 0x00, 0x01, /* Identifier, Sequence Number */
-    0x07, 0xe5, 0x8e, 0x6a, 0x00, 0x00, 0x00, 0x00, 0x6f, 0xf0, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
-    0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f,
-    0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
-];
-
-/// Dissects a hard-coded Ethernet + IPv4 + ICMP echo-request frame,
-/// printing each decoded layer via its Display.
-///
-/// # Errors
-///
-/// Returns an [`errors::AppError`] if parsing fails at the Ethernet or IPv4
-/// layer. Because the sample frame is hard-coded, failure indicates a bug in
-/// the parser.
-pub fn run() -> Result<(), errors::AppError> {
-    print_packet();
-    let frame = Frame::parse(PACKET_TEST)?;
-    print!("{frame}");
-    Ok(())
-}
-
-fn print_packet() {
-    println!(
-        "Frame: {} bytes ({} bits):",
-        PACKET_TEST.len(),
-        8 * PACKET_TEST.len()
-    );
-    for (i, chunk) in PACKET_TEST.chunks(16).enumerate() {
-        print!("{:04x}  ", i * 16);
-        for (j, b) in chunk.iter().enumerate() {
-            print!("{b:02x} ");
-            if j == 7 {
-                print!(" ");
-            }
-        }
-        println!();
-    }
-    println!();
-}
+pub mod samples;

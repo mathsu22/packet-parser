@@ -2,7 +2,7 @@
 
 use thiserror::Error;
 
-use crate::{layer2::ethernet::EthernetError, layer3::ipv4::errors::Ipv4Error};
+use crate::{layer2::EthernetError, layer3::ipv4::Ipv4Error};
 
 /// Errors that can halt the dissection fatally. Only Ethernet and
 /// IPv4 can do that: nothing below IPv4 kills the frame — every

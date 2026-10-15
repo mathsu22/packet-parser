@@ -2,12 +2,12 @@
 //!
 //! ## Module map
 //!
-//! - [`packet`] — the [`Ipv4Header`](crate::layer3::ipv4::packet::Ipv4Header) struct and the parsing logic
-//! - [`errors`] — [`Ipv4Error`](crate::layer3::ipv4::errors::Ipv4Error): every way parsing can fail
-//! - [`anomalies`] — [`Ipv4Anomaly`](crate::layer3::ipv4::anomalies::Ipv4Anomaly): non-fatal protocol anomalies detected during parsing
-//! - [`protocol`] — [`IpProtocol`](crate::layer3::ipv4::protocol::IpProtocol): the Protocol field as an enum
-//! - [`flags`] — [`IpFlags`](crate::layer3::ipv4::flags::IpFlags): the 3-bit Flags field from the IPv4 header, decoded into named booleans
-//! - [`display`] — Wireshark-style formatting for [`Ipv4Header`](crate::layer3::ipv4::packet::Ipv4Header)
+//! - [`packet`] — the [`Ipv4Header`] struct and the parsing logic
+//! - [`errors`] — [`Ipv4Error`]: every way parsing can fail
+//! - [`anomalies`] — [`Ipv4Anomaly`]: non-fatal protocol anomalies detected during parsing
+//! - [`protocol`] — [`IpProtocol`]: the Protocol field as an enum
+//! - [`flags`] — [`IpFlags`]: the 3-bit Flags field from the IPv4 header, decoded into named booleans
+//! - [`display`] — Wireshark-style formatting for [`Ipv4Header`]
 //! - [`dscp_ecn`] — helpers for interpreting DSCP and ECN values
 //!
 //! Checksum computation ([`crate::checksum`]) lives at the crate root,
@@ -24,3 +24,10 @@ pub mod errors;
 pub mod flags;
 pub mod packet;
 pub mod protocol;
+
+pub use anomalies::{HeaderField, Ipv4Anomaly};
+pub use dscp_ecn::{dscp_name, ecn_keyword};
+pub use errors::Ipv4Error;
+pub use flags::IpFlags;
+pub use packet::Ipv4Header;
+pub use protocol::IpProtocol;

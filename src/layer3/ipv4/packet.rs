@@ -8,9 +8,7 @@
 
 use crate::{
     checksum::{ChecksumStatus, checksum},
-    layer3::ipv4::{
-        anomalies::Ipv4Anomaly, errors::Ipv4Error, flags::IpFlags, protocol::IpProtocol,
-    },
+    layer3::ipv4::{IpFlags, IpProtocol, Ipv4Anomaly, Ipv4Error},
 };
 use std::net::Ipv4Addr;
 
@@ -281,11 +279,11 @@ impl Ipv4Header {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::PACKET_TEST;
+    use crate::samples::PING_REQUEST;
 
-    // `PACKET_TEST` with the Ethernet header stripped off
+    // `PING_REQUEST` with the Ethernet header stripped off
     fn ipv4_test_packet() -> &'static [u8] {
-        &PACKET_TEST[14..]
+        &PING_REQUEST[14..]
     }
 
     // happy path

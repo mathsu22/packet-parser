@@ -6,7 +6,7 @@
 
 use crate::{
     checksum::{ChecksumStatus, checksum},
-    layer3::icmp::{anomalies::IcmpAnomaly, types::IcmpType},
+    layer3::icmp::{IcmpAnomaly, IcmpType},
 };
 use thiserror::Error;
 
@@ -161,15 +161,15 @@ impl<'a> IcmpMessage<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::PACKET_TEST;
+    use crate::samples::PING_REQUEST;
 
     // The message length the IPv4 datagram declares for the ICMP message
-    // inside PACKET_TEST: Total Length (84) − IPv4 header (20).
+    // inside PING_REQUEST: Total Length (84) − IPv4 header (20).
     const ICMP_MESSAGE_LENGTH: usize = 64;
 
-    // The ICMP message inside PACKET_TEST (Ethernet 14 + IPv4 20).
+    // The ICMP message inside PING_REQUEST (Ethernet 14 + IPv4 20).
     fn icmp_test_message() -> &'static [u8] {
-        &PACKET_TEST[34..]
+        &PING_REQUEST[34..]
     }
 
     #[test]
